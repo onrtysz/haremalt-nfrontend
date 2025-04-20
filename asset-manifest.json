@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/onrtysz/haremalt-nfrontend.git/static/css/main.e6c13ad2.css",
+    "main.js": "/onrtysz/haremalt-nfrontend.git/static/js/main.87043c98.js",
+    "static/js/453.8ab44547.chunk.js": "/onrtysz/haremalt-nfrontend.git/static/js/453.8ab44547.chunk.js",
+    "index.html": "/onrtysz/haremalt-nfrontend.git/index.html",
+    "main.e6c13ad2.css.map": "/onrtysz/haremalt-nfrontend.git/static/css/main.e6c13ad2.css.map",
+    "main.87043c98.js.map": "/onrtysz/haremalt-nfrontend.git/static/js/main.87043c98.js.map",
+    "453.8ab44547.chunk.js.map": "/onrtysz/haremalt-nfrontend.git/static/js/453.8ab44547.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.e6c13ad2.css",
+    "static/js/main.87043c98.js"
+  ]
+}
