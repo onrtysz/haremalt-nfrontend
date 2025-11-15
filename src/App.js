@@ -145,6 +145,7 @@ function App() {
 
   useEffect(() => {
     // Connect to WebSocket server with CORS settings
+    console.log("🔌 Attempting to connect to:", BACKEND_URL);
     const socket = io(BACKEND_URL, {
       reconnection: true,
       reconnectionDelay: 1000,
@@ -152,14 +153,19 @@ function App() {
       reconnectionAttempts: Infinity,
       withCredentials: true,
       transports: ['websocket', 'polling'],
-      cors: {
-        origin: "*",
-        methods: ["GET", "POST"],
-      },
+      upgrade: true,
     });
 
     socket.on("connect", () => {
       console.log("✅ Connected to real-time price updates");
+    });
+
+    socket.on("connect_error", (error) => {
+      console.error("❌ Connection error:", error.message);
+    });
+
+    socket.on("error", (error) => {
+      console.error("❌ Socket error:", error);
     });
 
     // Listen for initial gold price when connecting
