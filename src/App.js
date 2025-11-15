@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
+import io from "socket.io-client";
 import {
   Table,
   TableBody,
@@ -9,13 +10,21 @@ import {
   TableRow,
   Paper,
   TextField,
-  Button,
+  Box,
+  Typography,
+  IconButton,
 } from "@mui/material";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import TrendingDownIcon from "@mui/icons-material/TrendingDown";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import SaveIcon from "@mui/icons-material/Save";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 function App() {
-  const [prices, setPrices] = useState([]);
   const [hesaplananFiyat, setHesaplananFiyat] = useState([]);
   const [goldPrice, setGoldPrice] = useState(null);
+  const [currentTime, setCurrentTime] = useState("");
   
   const formatNumber = (number) => {
     return new Intl.NumberFormat('tr-TR', {
@@ -24,53 +33,55 @@ function App() {
     }).format(number);
   };
   
+  // Helper to convert object to array if needed
+  const ensureArray = (data, defaultValue) => {
+    if (Array.isArray(data)) return data;
+    if (typeof data === "object" && data !== null) {
+      // Convert object { '0': val, '1': val, ... } to array
+      return Array.from({ length: 10 }, (_, i) => data[i] || defaultValue);
+    }
+    return Array(10).fill(defaultValue);
+  };
+
   const [buyLaborCosts, setBuyLaborCosts] = useState(() => {
     const saved = localStorage.getItem("buyLaborCosts");
-    return saved ? JSON.parse(saved) : {};
+    return saved ? ensureArray(JSON.parse(saved), "") : Array(10).fill("");
   });
   const [sellLaborCosts, setSellLaborCosts] = useState(() => {
     const saved = localStorage.getItem("sellLaborCosts");
-    return saved ? JSON.parse(saved) : {};
+    return saved ? ensureArray(JSON.parse(saved), "") : Array(10).fill("");
   });
   const [buyFixedCosts, setBuyFixedCosts] = useState(() => {
     const saved = localStorage.getItem("buyFixedCosts");
-    return saved ? JSON.parse(saved) : {};
+    const defaults = [1.0, 0.995, 0.916, 0.913, 6.38, 6.44, 6.53/4, 6.39/4, 0.919, 0.921];
+    return saved ? ensureArray(JSON.parse(saved), 1.0) : defaults;
   });
   const [sellFixedCosts, setSellFixedCosts] = useState(() => {
     const saved = localStorage.getItem("sellFixedCosts");
-    return saved ? JSON.parse(saved) : {};
+    const defaults = [1.0, 0.995, 0.916, 0.913, 6.38, 6.44, 6.53/4, 6.39/4, 0.919, 0.921];
+    return saved ? ensureArray(JSON.parse(saved), 1.0) : defaults;
   });
 
   const [showInputs, setShowInputs] = useState(false);
   const [calculatedPrices, setCalculatedPrices] = useState([]);
   const [cellColors, setCellColors] = useState({});
 
+  const setCellColor = (index, color) => {
+    setCellColors((prevColors) => ({ ...prevColors, [index]: color }));
 
- 
-  useEffect(() => {
-    const fetchGoldPrice = async () => {
-      try {
-        const response = await axios.get("https://haremaltinbackend.onrender.com/gold-price");
-        setGoldPrice(response.data);
-        await handleCalculatePrices();
-      } catch (error) {
-        console.error("Bir hata oluştu:", error);
-      }
-    };
+    setTimeout(() => {
+      setCellColors((prevColors) => ({ ...prevColors, [index]: "transparent" }));
+    }, 5000);
+  };
 
-    fetchGoldPrice();
-
-    const interval = setInterval(() => {
-      fetchGoldPrice();
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleCalculatePrices = async () => {
+  const handleCalculatePrices = useCallback(async () => {
+    console.log("🔄 handleCalculatePrices called");
     try {
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || "http://localhost:4002";
+      console.log("📍 Sending to backend:", { buyLaborCosts, sellLaborCosts, buyFixedCosts, sellFixedCosts });
+      
       const response = await axios.post(
-        "https://haremaltinbackend.onrender.com/bracelet-price",
+        `${backendUrl}/bracelet-price`,
         {
           buyLaborCosts,
           sellLaborCosts,
@@ -78,9 +89,10 @@ function App() {
           sellFixedCosts,
         }
       );
-  
+      
+      console.log("✅ Response received:", response.data);
+      
       // Tüm state'leri güncelle
-      setPrices(response.data.price || []);
       setHesaplananFiyat(response.data.hesaplanan || []);
       setCalculatedPrices(response.data.hesaplanan || []);
   
@@ -95,38 +107,97 @@ function App() {
         });
       }
   
-      console.log("Hesaplamalar güncellendi:", response.data.hesaplanan);
+      console.log("✅ Hesaplamalar güncellendi:", response.data.hesaplanan);
     } catch (error) {
-      console.error("Hesaplama hatası:", error);
+      console.error("❌ Hesaplama hatası:", error.message);
+      console.error("Full error:", error);
     }
-  };
+  }, [buyLaborCosts, sellLaborCosts, buyFixedCosts, sellFixedCosts]);
 
-  const setCellColor = (index, color) => {
-    setCellColors((prevColors) => ({ ...prevColors, [index]: color }));
+  // Update time every second
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, "0");
+      const minutes = String(now.getMinutes()).padStart(2, "0");
+      const seconds = String(now.getSeconds()).padStart(2, "0");
+      setCurrentTime(`${hours}:${minutes}:${seconds}`);
+    };
+    
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
-    setTimeout(() => {
-      setCellColors((prevColors) => ({ ...prevColors, [index]: "transparent" }));
-    }, 5000);
-  };
+  useEffect(() => {
+    // Connect to WebSocket server
+    const backendUrl = process.env.REACT_APP_BACKEND_URL || "http://localhost:4002";
+    const socket = io(backendUrl, {
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: Infinity,
+    });
+
+    socket.on("connect", () => {
+      console.log("✅ Connected to real-time price updates");
+    });
+
+    // Listen for initial gold price when connecting
+    socket.on("initialGoldPrice", (message) => {
+      console.log("📊 Initial price received:", message.data);
+      setGoldPrice(message.data);
+    });
+
+    // Listen for real-time gold price updates from WebSocket
+    socket.on("goldPriceUpdate", (message) => {
+      console.log("📊 Real-time price update received:", message.data);
+      setGoldPrice(message.data);
+      console.log("New price set:", message.data[0].buy, message.data[0].sell);
+    });
+
+    socket.on("disconnect", () => {
+      console.log("❌ Disconnected from price updates");
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  // Auto-recalculate when gold price or labor/fixed costs change
+  useEffect(() => {
+    if (goldPrice) {
+      handleCalculatePrices();
+    }
+  }, [goldPrice, handleCalculatePrices, buyLaborCosts, sellLaborCosts, buyFixedCosts, sellFixedCosts]);
 
   const handleBuyLaborCostChange = (index, value) => {
-    const updatedCosts = { ...buyLaborCosts, [index]: value };
+    const updatedCosts = [...buyLaborCosts];
+    updatedCosts[index] = value;
     setBuyLaborCosts(updatedCosts);
+    console.log("Buy labor updated:", updatedCosts);
   };
 
   const handleSellLaborCostChange = (index, value) => {
-    const updatedCosts = { ...sellLaborCosts, [index]: value };
+    const updatedCosts = [...sellLaborCosts];
+    updatedCosts[index] = value;
     setSellLaborCosts(updatedCosts);
+    console.log("Sell labor updated:", updatedCosts);
   };
 
   const handleBuyFixedCostChange = (index, value) => {
-    const updatedCosts = { ...buyFixedCosts, [index]: value };
+    const updatedCosts = [...buyFixedCosts];
+    updatedCosts[index] = value;
     setBuyFixedCosts(updatedCosts);
+    console.log("Buy fixed updated:", updatedCosts);
   };
 
   const handleSellFixedCostChange = (index, value) => {
-    const updatedCosts = { ...sellFixedCosts, [index]: value };
+    const updatedCosts = [...sellFixedCosts];
+    updatedCosts[index] = value;
     setSellFixedCosts(updatedCosts);
+    console.log("Sell fixed updated:", updatedCosts);
   };
 
   const handleSave = () => {
@@ -146,6 +217,15 @@ function App() {
     localStorage.removeItem("sellLaborCosts");
     localStorage.removeItem("buyFixedCosts");
     localStorage.removeItem("sellFixedCosts");
+    
+    // Reset state to default values
+    const fixedCostDefaults = [1.0, 0.995, 0.916, 0.913, 6.38, 6.44, 6.53/4, 6.39/4, 0.919, 0.921];
+    
+    setBuyLaborCosts(Array(10).fill(""));
+    setSellLaborCosts(Array(10).fill(""));
+    setBuyFixedCosts(fixedCostDefaults);
+    setSellFixedCosts(fixedCostDefaults);
+    
     alert("Değerler silindi!");
   };
 
@@ -155,180 +235,353 @@ function App() {
   //   handleCalculatePrices();
   // }, [buyLaborCosts, sellLaborCosts, buyFixedCosts, sellFixedCosts]);
 
-  return (
-    <div style={{ padding: "20px", backgroundColor: "#181818", color: "#fff" }}>
-      <h1 style={{ color: "#b7a369", textAlign: "center" }}>Altın Fiyatları</h1>
-      <div style={{ textAlign: "right", marginBottom: "20px" }}>
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={toggleInputs}
-          style={{ marginBottom: "20px", marginRight: "20px" }}
-        >
-          {showInputs ? "Gizle" : "Göster"}
-        </Button>
-        <Button
-          variant="contained"
-          color="secondary"
-          onClick={handleSave}
-          style={{ marginBottom: "20px" }}
-        >
-          Onayla
-        </Button>
-        <Button
-          variant="contained"
-          color="secondary"
-          onClick={removeLocalStorage}
-          style={{ marginBottom: "20px", marginLeft: "20px" }}
-        >
-          Sil
-        </Button>
-      </div>
 
-      <TableContainer component={Paper} style={{ backgroundColor: "#181818" }}>
-        <Table>
-          <TableHead>
-            <TableRow style={{ backgroundColor: "#2C2C2C", color: "#fff" }}>
-              <TableCell style={{ color: "#fff", fontWeight: "bold" }}>
-              </TableCell>
-              <TableCell align="right" style={{ color: "#fff", fontWeight: "bold" }}>
-                Alış
-              </TableCell>
-              <TableCell align="right" style={{ color: "#fff", fontWeight: "bold" }}>
-                Satış
-              </TableCell>
-              {showInputs && (
-                <>
-                  <TableCell align="right" style={{ color: "#fff", fontWeight: "bold" }}>
-                    Buy Labor Cost
+  return (
+    <Box
+      sx={{
+        backgroundColor: "#f5f5f5",
+        minHeight: "100vh",
+        padding: "20px",
+      }}
+    >
+
+      <Box
+        sx={{
+          maxWidth: "50%",
+          margin: "0 auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+          marginBottom: "20px",
+        }}
+      >
+          {/* Title and time */}
+          <Box sx={{ marginBottom: "0px", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "100px" }}>
+            <Typography
+              sx={{
+                color: "#d4af37",
+                fontWeight: "900",
+                fontSize: "26px",
+              }}
+            >
+              ALTIN FİYATLARI
+            </Typography>
+            <Typography sx={{ color: "#999", fontSize: "16px", fontWeight: "bold" }}>
+              {currentTime}
+            </Typography>
+          </Box>
+
+          {/* Control buttons - Icon based */}
+          <Box sx={{ marginBottom: "8px", display: "flex", gap: "6px", opacity: 0.9, "&:hover": { opacity: 1 },justifyContent: "flex-end" }}>
+            <IconButton
+              onClick={toggleInputs}
+              sx={{ 
+                color: "#d4af37",
+                fontSize: "20px",
+                transition: "all 0.3s",
+                padding: "4px",
+                "&:hover": {
+                  transform: "scale(1.2)",
+                }
+              }}
+              title={showInputs ? "Gizle" : "Göster"}
+            >
+              {showInputs ? <VisibilityOffIcon sx={{ fontSize: "20px" }} /> : <VisibilityIcon sx={{ fontSize: "20px" }} />}
+            </IconButton>
+            <IconButton
+              onClick={handleSave}
+              sx={{ 
+                color: "#d4af37",
+                fontSize: "20px",
+                transition: "all 0.3s",
+                padding: "4px",
+                "&:hover": {
+                  transform: "scale(1.2)",
+                }
+              }}
+              title="Onayla"
+            >
+              <SaveIcon sx={{ fontSize: "20px" }} />
+            </IconButton>
+            <IconButton
+              onClick={removeLocalStorage}
+              sx={{ 
+                color: "#e74c3c",
+                fontSize: "20px",
+                transition: "all 0.3s",
+                padding: "4px",
+                "&:hover": {
+                  transform: "scale(1.2)",
+                }
+              }}
+              title="Sil"
+            >
+              <DeleteIcon sx={{ fontSize: "20px" }} />
+            </IconButton>
+          </Box>
+
+          {/* Price table */}
+          <TableContainer
+            component={Paper}
+            sx={{
+              backgroundColor: "#fff",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+              borderRadius: "10px",
+              overflow: "hidden",
+              border: "1px solid #d4af37",
+            }}
+          >
+            <Table>
+              <TableHead>
+                <TableRow sx={{ backgroundColor: "#f9f9f9" }}>
+                  <TableCell
+                    align="center"
+                    sx={{
+                      fontWeight: "900",
+                      color: "#333",
+                      borderBottom: "3px solid #d4af37",
+                      fontSize: "16px",
+                      padding: "10px 4px",
+                    }}
+                  >
+                    Ürün
                   </TableCell>
-                  <TableCell align="right" style={{ color: "#fff", fontWeight: "bold" }}>
-                    Buy Fixed Cost
+                  <TableCell
+                    align="center"
+                    sx={{
+                      fontWeight: "900",
+                      color: "#333",
+                      borderBottom: "3px solid #d4af37",
+                      fontSize: "16px",
+                      padding: "10px 4px",
+                    }}
+                  >
+                    Alış
                   </TableCell>
-                  <TableCell align="right" style={{ color: "#fff", fontWeight: "bold" }}>
-                    Sell Labor Cost
+                  <TableCell
+                    align="center"
+                    sx={{
+                      fontWeight: "900",
+                      color: "#333",
+                      borderBottom: "3px solid #d4af37",
+                      fontSize: "16px",
+                      padding: "10px 4px",
+                    }}
+                  >
+                    Satış
                   </TableCell>
-                  <TableCell align="right" style={{ color: "#fff", fontWeight: "bold" }}>
-                    Sell Fixed Cost
+                  <TableCell
+                    align="center"
+                    sx={{
+                      fontWeight: "900",
+                      color: "#333",
+                      borderBottom: "3px solid #d4af37",
+                      fontSize: "16px",
+                      padding: "10px 4px",
+                    }}
+                  >
+                    Fark (%)
                   </TableCell>
-                </>
-              )}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {hesaplananFiyat?.map((item, index) => (
-              <TableRow key={index} style={{ borderBottom: "1px solid #444" }}>
-                <TableCell style={{ color: "#b7a369", padding: "12px" }}>{item.key}</TableCell>
-                <TableCell
-                  align="right"
-                  style={{
-                    backgroundColor: cellColors[index] || "transparent",
-                    transition: "background-color 0.5s",
-                    color: "#fff",
-                    padding: "12px",
-                    fontWeight: "bold",
-                  }}
-                >
-                  {formatNumber(calculatedPrices[index]?.buy) || formatNumber(item.buy)}
-                </TableCell>
-                <TableCell
-                  align="right"
-                  style={{
-                    backgroundColor: cellColors[index] || "transparent",
-                    transition: "background-color 0.5s",
-                    color: "#fff",
-                    padding: "12px",
-                    fontWeight: "bold",
-                  }}
-                >
-                  {formatNumber(calculatedPrices[index]?.sell) || formatNumber(item.sell)}
-                </TableCell>
-                {showInputs && (
-                  <>
-                    <TableCell align="right">
-                      <TextField
-                        value={buyLaborCosts[index]}
-                        onChange={(e) => handleBuyLaborCostChange(index, e.target.value)}
-                        style={{ width: "120px", backgroundColor: "#333", color: "#fff" , 
-                          border: "1px solid #fff", borderRadius: "5px"
+                  {showInputs && (
+                    <>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          fontWeight: "bold",
+                          color: "#333",
+                          borderBottom: "2px solid #d4af37",
+                          fontSize: "12px",
                         }}
-                        InputProps={{
-                          style: {
-                            color: "#fff", // Metin rengi
-                          },
+                      >
+                        Alış İşçilik
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          fontWeight: "bold",
+                          color: "#333",
+                          borderBottom: "2px solid #d4af37",
+                          fontSize: "12px",
                         }}
-                        InputLabelProps={{
-                          style: {
-                            color: "#fff", // Label rengi
-                          },
+                      >
+                        Alış Sabit
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          fontWeight: "bold",
+                          color: "#333",
+                          borderBottom: "2px solid #d4af37",
+                          fontSize: "12px",
                         }}
-                      />
-                    </TableCell>
-                    <TableCell align="right">
-                      <TextField
-                        value={buyFixedCosts[index]}
-                        onChange={(e) => handleBuyFixedCostChange(index, e.target.value)}
-                        style={{ width: "120px", backgroundColor: "#333", color: "#fff" , 
-                          border: "1px solid #fff", borderRadius: "5px"
+                      >
+                        Satış İşçilik
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          fontWeight: "bold",
+                          color: "#333",
+                          borderBottom: "2px solid #d4af37",
+                          fontSize: "12px",
                         }}
-                        InputProps={{
-                          style: {
-                            color: "#fff", // Metin rengi
-                          },
+                      >
+                        Satış Sabit
+                      </TableCell>
+                    </>
+                  )}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {hesaplananFiyat?.map((item, index) => {
+                  // Note: percentChange calculation uses initial price from item for baseline
+                  const currentPrice = calculatedPrices[index]?.buy || item.buy;
+                  const percentChange = 0; // Baseline comparison - will be enhanced with historical data
+
+                  return (
+                    <TableRow
+                      key={index}
+                      sx={{
+                        backgroundColor:
+                          cellColors[index] === "#35C051"
+                            ? "#e8f5e9"
+                            : cellColors[index] === "red"
+                            ? "#ffebee"
+                            : index % 2 === 0 ? "#ffffff" : "#eeeeee",
+                        transition: "background-color 0.3s",
+                        "&:hover": {
+                          backgroundColor: index % 2 === 0 ? "#f5f5f5" : "#e5e5e5",
+                        },
+                      }}
+                    >
+                      <TableCell
+                        align="center"
+                        sx={{
+                          color: "#d4af37",
+                          fontWeight: "900",
+                          borderBottom: "1px solid #eee",
+                          padding: "6px 4px",
                         }}
-                        InputLabelProps={{
-                          style: {
-                            color: "#fff", // Label rengi
-                          },
+                      >
+                        <Box>
+                          <Typography sx={{ fontSize: "18px", fontWeight: "900", lineHeight: 1.2 }}>
+                            {item.key}
+                          </Typography>
+                          <Typography sx={{ fontSize: "13px", color: "#999", fontWeight: "bold", lineHeight: 1.1 }}>
+                            {item.key}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell
+                        align="center"
+                        sx={{
+                          color: "#000",
+                          fontWeight: "900",
+                          borderBottom: "1px solid #eee",
+                          fontSize: "18px",
+                          padding: "6px 2px",
+                          lineHeight: 1.3,
                         }}
-                      />
-                    </TableCell>
-                    <TableCell align="right">
-                      <TextField
-                        value={sellLaborCosts[index]}
-                        onChange={(e) => handleSellLaborCostChange(index, e.target.value)}
-                        style={{ width: "120px", backgroundColor: "#333", color: "#fff" , 
-                          border: "1px solid #fff", borderRadius: "5px"
+                      >
+                        {formatNumber(currentPrice)}
+                      </TableCell>
+                      <TableCell
+                        align="center"
+                        sx={{
+                          color: "#000",
+                          fontWeight: "900",
+                          borderBottom: "1px solid #eee",
+                          fontSize: "18px",
+                          padding: "6px 2px",
+                          lineHeight: 1.3,
                         }}
-                        InputProps={{
-                          style: {
-                            color: "#fff", // Metin rengi
-                          },
+                      >
+                        {formatNumber(calculatedPrices[index]?.sell || item.sell)}
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          borderBottom: "1px solid #eee",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "3px",
+                          padding: "6px 4px",
                         }}
-                        InputLabelProps={{
-                          style: {
-                            color: "#fff", // Label rengi
-                          },
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell align="right">
-                      <TextField
-                        value={sellFixedCosts[index]}
-                        onChange={(e) => handleSellFixedCostChange(index, e.target.value)}
-                        style={{ width: "120px", backgroundColor: "#333", color: "#fff" , 
-                          border: "1px solid #fff", borderRadius: "5px"
-                        }}
-                        InputProps={{
-                          style: {
-                            color: "#fff", // Metin rengi
-                          },
-                        }}
-                        InputLabelProps={{
-                          style: {
-                            color: "#fff", // Label rengi
-                          },
-                        }}
-                      />
-                    </TableCell>
-                  </>
-                )}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </div>
+                      >
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "2px",
+                            color:
+                              percentChange >= 0
+                                ? "#35C051"
+                                : "#e74c3c",
+                          }}
+                        >
+                          {percentChange >= 0 ? (
+                            <TrendingUpIcon sx={{ fontSize: "18px" }} />
+                          ) : (
+                            <TrendingDownIcon sx={{ fontSize: "18px" }} />
+                          )}
+                          <Typography sx={{ fontSize: "16px", fontWeight: "900", lineHeight: 1.2 }}>
+                            {Math.abs(percentChange).toFixed(2)}%
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      {showInputs && (
+                        <>
+                          <TableCell align="right" sx={{ borderBottom: "1px solid #eee" }}>
+                            <TextField
+                              size="small"
+                              value={buyLaborCosts[index] || ""}
+                              onChange={(e) =>
+                                handleBuyLaborCostChange(index, e.target.value)
+                              }
+                              sx={{ width: "90px" }}
+                            />
+                          </TableCell>
+                          <TableCell align="right" sx={{ borderBottom: "1px solid #eee" }}>
+                            <TextField
+                              size="small"
+                              value={buyFixedCosts[index] || ""}
+                              onChange={(e) =>
+                                handleBuyFixedCostChange(index, e.target.value)
+                              }
+                              sx={{ width: "90px" }}
+                            />
+                          </TableCell>
+                          <TableCell align="right" sx={{ borderBottom: "1px solid #eee" }}>
+                            <TextField
+                              size="small"
+                              value={sellLaborCosts[index] || ""}
+                              onChange={(e) =>
+                                handleSellLaborCostChange(index, e.target.value)
+                              }
+                              sx={{ width: "90px" }}
+                            />
+                          </TableCell>
+                          <TableCell align="right" sx={{ borderBottom: "1px solid #eee" }}>
+                            <TextField
+                              size="small"
+                              value={sellFixedCosts[index] || ""}
+                              onChange={(e) =>
+                                handleSellFixedCostChange(index, e.target.value)
+                              }
+                              sx={{ width: "90px" }}
+                            />
+                          </TableCell>
+                        </>
+                      )}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+      </Box>
+    </Box>
   );
 }
 
