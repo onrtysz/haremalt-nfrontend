@@ -144,12 +144,18 @@ function App() {
   }, []);
 
   useEffect(() => {
-    // Connect to WebSocket server
+    // Connect to WebSocket server with CORS settings
     const socket = io(BACKEND_URL, {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       reconnectionAttempts: Infinity,
+      withCredentials: true,
+      transports: ['websocket', 'polling'],
+      cors: {
+        origin: "*",
+        methods: ["GET", "POST"],
+      },
     });
 
     socket.on("connect", () => {
@@ -341,11 +347,13 @@ function App() {
               backgroundColor: "#fff",
               boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
               borderRadius: "10px",
-              overflow: "hidden",
+              overflow: showInputs ? { xs: "auto", md: "hidden" } : "hidden",
+              overflowX: showInputs ? { xs: "auto", md: "visible" } : "visible",
               border: "1px solid #d4af37",
+              WebkitOverflowScrolling: "touch",
             }}
           >
-            <Table>
+            <Table sx={{ minWidth: showInputs ? { xs: "700px", md: "100%" } : "100%" }}>
               <TableHead>
                 <TableRow sx={{ backgroundColor: "#f9f9f9" }}>
                   <TableCell
