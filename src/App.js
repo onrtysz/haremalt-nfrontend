@@ -21,6 +21,21 @@ import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import SaveIcon from "@mui/icons-material/Save";
 import DeleteIcon from "@mui/icons-material/Delete";
 
+// Backend URL configuration
+const getBackendUrl = () => {
+  if (process.env.REACT_APP_BACKEND_URL) {
+    return process.env.REACT_APP_BACKEND_URL;
+  }
+  // Production URL fallback
+  if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+    return "https://haremaltinbackend.onrender.com";
+  }
+  // Development URL
+  return "http://localhost:4002";
+};
+
+const BACKEND_URL = getBackendUrl();
+
 function App() {
   const [hesaplananFiyat, setHesaplananFiyat] = useState([]);
   const [goldPrice, setGoldPrice] = useState(null);
@@ -77,11 +92,10 @@ function App() {
   const handleCalculatePrices = useCallback(async () => {
     console.log("🔄 handleCalculatePrices called");
     try {
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || "http://localhost:4002";
       console.log("📍 Sending to backend:", { buyLaborCosts, sellLaborCosts, buyFixedCosts, sellFixedCosts });
       
       const response = await axios.post(
-        `${backendUrl}/bracelet-price`,
+        `${BACKEND_URL}/bracelet-price`,
         {
           buyLaborCosts,
           sellLaborCosts,
@@ -131,8 +145,7 @@ function App() {
 
   useEffect(() => {
     // Connect to WebSocket server
-    const backendUrl = process.env.REACT_APP_BACKEND_URL || "http://localhost:4002";
-    const socket = io(backendUrl, {
+    const socket = io(BACKEND_URL, {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
@@ -247,26 +260,27 @@ function App() {
 
       <Box
         sx={{
-          maxWidth: "50%",
+          maxWidth: { xs: "100%", sm: "80%", md: "60%", lg: "50%" },
           margin: "0 auto",
           display: "flex",
           flexDirection: "column",
           gap: "8px",
           marginBottom: "20px",
+          padding: { xs: "0px", md: "0px" },
         }}
       >
           {/* Title and time */}
-          <Box sx={{ marginBottom: "0px", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "100px" }}>
+          <Box sx={{ marginBottom: "0px", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: { xs: "20px", md: "100px" }, flexWrap: "wrap", gap: "10px" }}>
             <Typography
               sx={{
                 color: "#d4af37",
                 fontWeight: "900",
-                fontSize: "26px",
+                fontSize: { xs: "18px", sm: "22px", md: "26px" },
               }}
             >
               ALTIN FİYATLARI
             </Typography>
-            <Typography sx={{ color: "#999", fontSize: "16px", fontWeight: "bold" }}>
+            <Typography sx={{ color: "#999", fontSize: { xs: "12px", sm: "14px", md: "16px" }, fontWeight: "bold" }}>
               {currentTime}
             </Typography>
           </Box>
@@ -340,8 +354,8 @@ function App() {
                       fontWeight: "900",
                       color: "#333",
                       borderBottom: "3px solid #d4af37",
-                      fontSize: "16px",
-                      padding: "10px 4px",
+                      fontSize: { xs: "11px", sm: "13px", md: "16px" },
+                      padding: { xs: "6px 2px", md: "10px 4px" },
                     }}
                   >
                     Ürün
@@ -352,8 +366,8 @@ function App() {
                       fontWeight: "900",
                       color: "#333",
                       borderBottom: "3px solid #d4af37",
-                      fontSize: "16px",
-                      padding: "10px 4px",
+                      fontSize: { xs: "11px", sm: "13px", md: "16px" },
+                      padding: { xs: "6px 2px", md: "10px 4px" },
                     }}
                   >
                     Alış
@@ -364,8 +378,8 @@ function App() {
                       fontWeight: "900",
                       color: "#333",
                       borderBottom: "3px solid #d4af37",
-                      fontSize: "16px",
-                      padding: "10px 4px",
+                      fontSize: { xs: "11px", sm: "13px", md: "16px" },
+                      padding: { xs: "6px 2px", md: "10px 4px" },
                     }}
                   >
                     Satış
@@ -376,8 +390,8 @@ function App() {
                       fontWeight: "900",
                       color: "#333",
                       borderBottom: "3px solid #d4af37",
-                      fontSize: "16px",
-                      padding: "10px 4px",
+                      fontSize: { xs: "11px", sm: "13px", md: "16px" },
+                      padding: { xs: "6px 2px", md: "10px 4px" },
                     }}
                   >
                     Fark (%)
