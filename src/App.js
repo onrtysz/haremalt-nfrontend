@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import io from "socket.io-client";
 import {
@@ -20,6 +20,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import SaveIcon from "@mui/icons-material/Save";
 import DeleteIcon from "@mui/icons-material/Delete";
+import CurrencyBar from "./CurrencyBar";
 
 // Backend URL configuration
 const getBackendUrl = () => {
@@ -37,49 +38,97 @@ const getBackendUrl = () => {
 const BACKEND_URL = getBackendUrl();
 
 function App() {
-  const [hesaplananFiyat, setHesaplananFiyat] = useState([]);
+  const [hesaplananFiyat, setHesaplananFiyat] = useState(() => {
+    const saved = localStorage.getItem("hesaplananFiyat");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed;
+      } catch (e) {}
+    }
+    return [];
+  });
   const [goldPrice, setGoldPrice] = useState(null);
+  const [currencyRates, setCurrencyRates] = useState(() => {
+    const saved = localStorage.getItem("currencyRates");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed;
+      } catch (e) {}
+    }
+    // Return default values only if nothing is saved
+    const defaults = [
+      { key: "USD", buy: "32.50", sell: "32.80", percent: "0.00", arrow: "up" },
+      { key: "EUR", buy: "35.75", sell: "36.10", percent: "0.00", arrow: "up" },
+      { key: "GBP", buy: "41.20", sell: "41.60", percent: "0.00", arrow: "up" },
+    ];
+    return defaults;
+  });
   const [currentTime, setCurrentTime] = useState("");
-  
+
   const formatNumber = (number) => {
-    return new Intl.NumberFormat('tr-TR', {
+    return new Intl.NumberFormat("tr-TR", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(number);
   };
-  
+
+  // Helper to merge new currency rates with previous ones, preserving old values
+  const mergeCurrencyRates = (previousRates, newRates) => {
+    if (!Array.isArray(newRates) || newRates.length === 0) {
+      return previousRates || [];
+    }
+
+    const prevArray = Array.isArray(previousRates) ? previousRates : [];
+    const rateMap = new Map(prevArray.map((rate) => [rate.key, rate]));
+
+    newRates.forEach((rate) => {
+      if (!rate || !rate.key) return;
+
+      const existing = rateMap.get(rate.key) || {};
+      // Merge to keep any old fields that might not come in the new payload
+      rateMap.set(rate.key, { ...existing, ...rate });
+    });
+
+    return Array.from(rateMap.values());
+  };
+
   // Helper to convert object to array if needed
   const ensureArray = (data, defaultValue) => {
     if (Array.isArray(data)) return data;
     if (typeof data === "object" && data !== null) {
       // Convert object { '0': val, '1': val, ... } to array
-      return Array.from({ length: 10 }, (_, i) => data[i] || defaultValue);
+      return Array.from({ length: 12 }, (_, i) => data[i] || defaultValue);
     }
-    return Array(10).fill(defaultValue);
+    return Array(12).fill(defaultValue);
   };
 
   const [buyLaborCosts, setBuyLaborCosts] = useState(() => {
     const saved = localStorage.getItem("buyLaborCosts");
-    return saved ? ensureArray(JSON.parse(saved), "") : Array(10).fill("");
+    return saved ? ensureArray(JSON.parse(saved), "") : Array(12).fill("");
   });
   const [sellLaborCosts, setSellLaborCosts] = useState(() => {
     const saved = localStorage.getItem("sellLaborCosts");
-    return saved ? ensureArray(JSON.parse(saved), "") : Array(10).fill("");
+    return saved ? ensureArray(JSON.parse(saved), "") : Array(12).fill("");
   });
   const [buyFixedCosts, setBuyFixedCosts] = useState(() => {
     const saved = localStorage.getItem("buyFixedCosts");
-    const defaults = [1.0, 0.995, 0.916, 0.913, 6.38, 6.44, 6.53/4, 6.39/4, 0.919, 0.921];
+    const defaults = [1.0, 0.995, 0.916, 0.913, 6.38, 3.265, 6.53/4, 6.44, 3.265, 6.39/4, 0.919, 0.921];
     return saved ? ensureArray(JSON.parse(saved), 1.0) : defaults;
   });
   const [sellFixedCosts, setSellFixedCosts] = useState(() => {
     const saved = localStorage.getItem("sellFixedCosts");
-    const defaults = [1.0, 0.995, 0.916, 0.913, 6.38, 6.44, 6.53/4, 6.39/4, 0.919, 0.921];
+    const defaults = [1.0, 0.995, 0.916, 0.913, 6.38, 3.265, 6.53/4, 6.44, 3.265, 6.39/4, 0.919, 0.921];
     return saved ? ensureArray(JSON.parse(saved), 1.0) : defaults;
   });
 
   const [showInputs, setShowInputs] = useState(false);
   const [calculatedPrices, setCalculatedPrices] = useState([]);
   const [cellColors, setCellColors] = useState({});
+  
+  // Keep track of last calculated price to avoid recalculating on every update
+  const lastCalculatedPriceRef = useRef(null);
 
   const setCellColor = (index, color) => {
     setCellColors((prevColors) => ({ ...prevColors, [index]: color }));
@@ -90,10 +139,7 @@ function App() {
   };
 
   const handleCalculatePrices = useCallback(async () => {
-    console.log("🔄 handleCalculatePrices called");
     try {
-      console.log("📍 Sending to backend:", { buyLaborCosts, sellLaborCosts, buyFixedCosts, sellFixedCosts });
-      
       const response = await axios.post(
         `${BACKEND_URL}/bracelet-price`,
         {
@@ -104,15 +150,18 @@ function App() {
         }
       );
       
-      console.log("✅ Response received:", response.data);
-      
       // Tüm state'leri güncelle
-      setHesaplananFiyat(response.data.hesaplanan || []);
-      setCalculatedPrices(response.data.hesaplanan || []);
+      const hesaplananData = response.data.hesaplanan || [];
+      setHesaplananFiyat(hesaplananData);
+      setCalculatedPrices(hesaplananData);
+      
+      // localStorage'a kaydet
+      localStorage.setItem("hesaplananFiyat", JSON.stringify(hesaplananData));
+      localStorage.setItem("calculatedPrices", JSON.stringify(hesaplananData));
   
       // Renk değişimlerini uygula
-      if (response.data.hesaplanan) {
-        response.data.hesaplanan.forEach((item, index) => {
+      if (hesaplananData) {
+        hesaplananData.forEach((item, index) => {
           if (item.arrow === "up") {
             setCellColor(index, "#35C051");
           } else if (item.arrow === "down") {
@@ -121,10 +170,8 @@ function App() {
         });
       }
   
-      console.log("✅ Hesaplamalar güncellendi:", response.data.hesaplanan);
     } catch (error) {
-      console.error("❌ Hesaplama hatası:", error.message);
-      console.error("Full error:", error);
+      // Optional: handle error reporting here
     }
   }, [buyLaborCosts, sellLaborCosts, buyFixedCosts, sellFixedCosts]);
 
@@ -145,7 +192,6 @@ function App() {
 
   useEffect(() => {
     // Connect to WebSocket server with CORS settings
-    console.log("🔌 Attempting to connect to:", BACKEND_URL);
     const socket = io(BACKEND_URL, {
       reconnection: true,
       reconnectionDelay: 1000,
@@ -156,34 +202,47 @@ function App() {
       upgrade: true,
     });
 
-    socket.on("connect", () => {
-      console.log("✅ Connected to real-time price updates");
-    });
+    socket.on("connect", () => {});
 
-    socket.on("connect_error", (error) => {
-      console.error("❌ Connection error:", error.message);
-    });
+    socket.on("connect_error", () => {});
 
-    socket.on("error", (error) => {
-      console.error("❌ Socket error:", error);
-    });
+    socket.on("error", () => {});
 
     // Listen for initial gold price when connecting
     socket.on("initialGoldPrice", (message) => {
-      console.log("📊 Initial price received:", message.data);
       setGoldPrice(message.data);
     });
 
     // Listen for real-time gold price updates from WebSocket
     socket.on("goldPriceUpdate", (message) => {
-      console.log("📊 Real-time price update received:", message.data);
       setGoldPrice(message.data);
-      console.log("New price set:", message.data[0].buy, message.data[0].sell);
     });
 
-    socket.on("disconnect", () => {
-      console.log("❌ Disconnected from price updates");
+    // Listen for initial currency rates
+    socket.on("initialCurrencyRates", (message) => {
+      // Always accept and save the data, merging with any existing values
+      if (message.data) {
+        setCurrencyRates((prevRates) => {
+          const merged = mergeCurrencyRates(prevRates, message.data);
+          localStorage.setItem("currencyRates", JSON.stringify(merged));
+          return merged;
+        });
+      }
     });
+
+    // Listen for real-time currency rate updates
+    socket.on("currencyRatesUpdate", (message) => {
+      // Merge incoming updates with previous values so missing currencies keep last price
+      if (message.data) {
+        setCurrencyRates((prevRates) => {
+          const merged = mergeCurrencyRates(prevRates, message.data);
+          localStorage.setItem("currencyRates", JSON.stringify(merged));
+          return merged;
+        });
+      }
+    });
+
+    socket.on("disconnect", () => {});
 
     return () => {
       socket.disconnect();
@@ -192,8 +251,14 @@ function App() {
 
   // Auto-recalculate when gold price or labor/fixed costs change
   useEffect(() => {
-    if (goldPrice) {
-      handleCalculatePrices();
+    if (goldPrice && goldPrice[0]) {
+      // Sadece fiyat gerçekten değişirse hesapla
+      const currentPrice = goldPrice[0].buy;
+      
+      if (lastCalculatedPriceRef.current !== currentPrice) {
+        lastCalculatedPriceRef.current = currentPrice;
+        handleCalculatePrices();
+      }
     }
   }, [goldPrice, handleCalculatePrices, buyLaborCosts, sellLaborCosts, buyFixedCosts, sellFixedCosts]);
 
@@ -201,28 +266,24 @@ function App() {
     const updatedCosts = [...buyLaborCosts];
     updatedCosts[index] = value;
     setBuyLaborCosts(updatedCosts);
-    console.log("Buy labor updated:", updatedCosts);
   };
 
   const handleSellLaborCostChange = (index, value) => {
     const updatedCosts = [...sellLaborCosts];
     updatedCosts[index] = value;
     setSellLaborCosts(updatedCosts);
-    console.log("Sell labor updated:", updatedCosts);
   };
 
   const handleBuyFixedCostChange = (index, value) => {
     const updatedCosts = [...buyFixedCosts];
     updatedCosts[index] = value;
     setBuyFixedCosts(updatedCosts);
-    console.log("Buy fixed updated:", updatedCosts);
   };
 
   const handleSellFixedCostChange = (index, value) => {
     const updatedCosts = [...sellFixedCosts];
     updatedCosts[index] = value;
     setSellFixedCosts(updatedCosts);
-    console.log("Sell fixed updated:", updatedCosts);
   };
 
   const handleSave = () => {
@@ -244,10 +305,10 @@ function App() {
     localStorage.removeItem("sellFixedCosts");
     
     // Reset state to default values
-    const fixedCostDefaults = [1.0, 0.995, 0.916, 0.913, 6.38, 6.44, 6.53/4, 6.39/4, 0.919, 0.921];
+    const fixedCostDefaults = [1.0, 0.995, 0.916, 0.913, 6.38, 3.265, 6.53/4, 6.44, 3.265, 6.39/4, 0.919, 0.921];
     
-    setBuyLaborCosts(Array(10).fill(""));
-    setSellLaborCosts(Array(10).fill(""));
+    setBuyLaborCosts(Array(12).fill(""));
+    setSellLaborCosts(Array(12).fill(""));
     setBuyFixedCosts(fixedCostDefaults);
     setSellFixedCosts(fixedCostDefaults);
     
@@ -272,7 +333,7 @@ function App() {
 
       <Box
         sx={{
-          maxWidth: { xs: "100%", sm: "80%", md: "60%", lg: "50%" },
+          maxWidth: { xs: "100%", sm: "90%", md: "80%", lg: "75%" },
           margin: "0 auto",
           display: "flex",
           flexDirection: "column",
@@ -346,20 +407,33 @@ function App() {
             </IconButton>
           </Box>
 
-          {/* Price table */}
-          <TableContainer
-            component={Paper}
+          {/* Price table + currency bar layout */}
+          <Box
             sx={{
-              backgroundColor: "#fff",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-              borderRadius: "10px",
-              overflow: showInputs ? { xs: "auto", md: "hidden" } : "hidden",
-              overflowX: showInputs ? { xs: "auto", md: "visible" } : "visible",
-              border: "1px solid #d4af37",
-              WebkitOverflowScrolling: "touch",
+              display: "flex",
+              flexDirection: { xs: "column", md: "row" },
+              alignItems: "flex-start",
+              gap: { xs: 2, md: 3 },
             }}
           >
-            <Table sx={{ minWidth: showInputs ? { xs: "700px", md: "100%" } : "100%" }}>
+            {/* Left: price table */}
+            <Box sx={{ flex: 3, width: "100%" }}>
+              <TableContainer
+                component={Paper}
+                sx={{
+                  backgroundColor: "#fff",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                  borderRadius: "10px",
+                  overflow: showInputs ? { xs: "auto", md: "hidden" } : "hidden",
+                  overflowX: showInputs ? { xs: "auto", md: "visible" } : "visible",
+                  border: "1px solid #d4af37",
+                  WebkitOverflowScrolling: "touch",
+                }}
+              >
+                <Table
+                  size="small"
+                  sx={{ minWidth: showInputs ? { xs: "700px", md: "100%" } : "100%" }}
+                >
               <TableHead>
                 <TableRow sx={{ backgroundColor: "#f9f9f9" }}>
                   <TableCell
@@ -368,8 +442,8 @@ function App() {
                       fontWeight: "900",
                       color: "#333",
                       borderBottom: "3px solid #d4af37",
-                      fontSize: { xs: "11px", sm: "13px", md: "16px" },
-                      padding: { xs: "6px 2px", md: "10px 4px" },
+                      fontSize: { xs: "11px", sm: "13px", md: "15px" },
+                      padding: { xs: "4px 2px", md: "8px 4px" },
                     }}
                   >
                     Ürün
@@ -380,8 +454,8 @@ function App() {
                       fontWeight: "900",
                       color: "#333",
                       borderBottom: "3px solid #d4af37",
-                      fontSize: { xs: "11px", sm: "13px", md: "16px" },
-                      padding: { xs: "6px 2px", md: "10px 4px" },
+                      fontSize: { xs: "11px", sm: "13px", md: "15px" },
+                      padding: { xs: "4px 2px", md: "8px 4px" },
                     }}
                   >
                     Alış
@@ -392,8 +466,8 @@ function App() {
                       fontWeight: "900",
                       color: "#333",
                       borderBottom: "3px solid #d4af37",
-                      fontSize: { xs: "11px", sm: "13px", md: "16px" },
-                      padding: { xs: "6px 2px", md: "10px 4px" },
+                      fontSize: { xs: "11px", sm: "13px", md: "15px" },
+                      padding: { xs: "4px 2px", md: "8px 4px" },
                     }}
                   >
                     Satış
@@ -404,8 +478,8 @@ function App() {
                       fontWeight: "900",
                       color: "#333",
                       borderBottom: "3px solid #d4af37",
-                      fontSize: { xs: "11px", sm: "13px", md: "16px" },
-                      padding: { xs: "6px 2px", md: "10px 4px" },
+                      fontSize: { xs: "11px", sm: "13px", md: "15px" },
+                      padding: { xs: "4px 2px", md: "8px 4px" },
                     }}
                   >
                     Fark (%)
@@ -462,24 +536,30 @@ function App() {
               </TableHead>
               <TableBody>
                 {hesaplananFiyat?.map((item, index) => {
-                  // Note: percentChange calculation uses initial price from item for baseline
+                  // Use arrow value from item for trend indicator
                   const currentPrice = calculatedPrices[index]?.buy || item.buy;
-                  const percentChange = 0; // Baseline comparison - will be enhanced with historical data
+                  const isPositive = item.arrow === "up";
+                  const isNegative = item.arrow === "down";
+
+                  // Add stronger separator after specific products for readability
+                  const isSeparatorRow =
+                    item.key === "GRAM ALTIN 913" ||
+                    item.key === "ÇEYREK ESKİ" ||
+                    item.key === "ÇEYREK YENİ";
+                  const separatorColor = "#c0c0c0";
 
                   return (
                     <TableRow
                       key={index}
                       sx={{
-                        backgroundColor:
-                          cellColors[index] === "#35C051"
-                            ? "#e8f5e9"
-                            : cellColors[index] === "red"
-                            ? "#ffebee"
-                            : index % 2 === 0 ? "#ffffff" : "#eeeeee",
+                        backgroundColor: index % 2 === 0 ? "#ffffff" : "#eeeeee",
                         transition: "background-color 0.3s",
                         "&:hover": {
                           backgroundColor: index % 2 === 0 ? "#f5f5f5" : "#e5e5e5",
                         },
+                        borderBottom: isSeparatorRow
+                          ? `2px solid ${separatorColor}`
+                          : "none",
                       }}
                     >
                       <TableCell
@@ -487,8 +567,8 @@ function App() {
                         sx={{
                           color: "#d4af37",
                           fontWeight: "900",
-                          borderBottom: "1px solid #eee",
-                          padding: "6px 4px",
+                          borderBottom: isSeparatorRow ? "none" : "1px solid #eee",
+                          padding: "4px 4px",
                         }}
                       >
                         <Box>
@@ -503,12 +583,13 @@ function App() {
                       <TableCell
                         align="center"
                         sx={{
-                          color: "#000",
+                          color: cellColors[index] === "#35C051" ? "#35C051" : cellColors[index] === "red" ? "#e74c3c" : "#000",
                           fontWeight: "900",
-                          borderBottom: "1px solid #eee",
-                          fontSize: "18px",
-                          padding: "6px 2px",
+                          borderBottom: isSeparatorRow ? "none" : "1px solid #eee",
+                          fontSize: "17px",
+                          padding: "4px 2px",
                           lineHeight: 1.3,
+                          transition: "color 0.3s",
                         }}
                       >
                         {formatNumber(currentPrice)}
@@ -516,12 +597,13 @@ function App() {
                       <TableCell
                         align="center"
                         sx={{
-                          color: "#000",
+                          color: cellColors[index] === "#35C051" ? "#35C051" : cellColors[index] === "red" ? "#e74c3c" : "#000",
                           fontWeight: "900",
-                          borderBottom: "1px solid #eee",
-                          fontSize: "18px",
-                          padding: "6px 2px",
+                          borderBottom: isSeparatorRow ? "none" : "1px solid #eee",
+                          fontSize: "17px",
+                          padding: "4px 2px",
                           lineHeight: 1.3,
+                          transition: "color 0.3s",
                         }}
                       >
                         {formatNumber(calculatedPrices[index]?.sell || item.sell)}
@@ -529,12 +611,12 @@ function App() {
                       <TableCell
                         align="right"
                         sx={{
-                          borderBottom: "1px solid #eee",
+                          borderBottom: isSeparatorRow ? "none" : "1px solid #eee",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
                           gap: "3px",
-                          padding: "6px 4px",
+                          padding: "4px 4px",
                         }}
                       >
                         <Box
@@ -543,24 +625,28 @@ function App() {
                             alignItems: "center",
                             gap: "2px",
                             color:
-                              percentChange >= 0
+                              isPositive
                                 ? "#35C051"
-                                : "#e74c3c",
+                                : isNegative
+                                ? "#e74c3c"
+                                : "#999",
                           }}
                         >
-                          {percentChange >= 0 ? (
+                          {isPositive ? (
                             <TrendingUpIcon sx={{ fontSize: "18px" }} />
-                          ) : (
+                          ) : isNegative ? (
                             <TrendingDownIcon sx={{ fontSize: "18px" }} />
+                          ) : (
+                            <Typography sx={{ fontSize: "16px", fontWeight: "900", lineHeight: 1.2 }}>−</Typography>
                           )}
                           <Typography sx={{ fontSize: "16px", fontWeight: "900", lineHeight: 1.2 }}>
-                            {Math.abs(percentChange).toFixed(2)}%
+                            {item.percent || "0.00"}%
                           </Typography>
                         </Box>
                       </TableCell>
                       {showInputs && (
                         <>
-                          <TableCell align="right" sx={{ borderBottom: "1px solid #eee" }}>
+                          <TableCell align="right" sx={{ borderBottom: isSeparatorRow ? "none" : "1px solid #eee" }}>
                             <TextField
                               size="small"
                               value={buyLaborCosts[index] || ""}
@@ -570,7 +656,7 @@ function App() {
                               sx={{ width: "90px" }}
                             />
                           </TableCell>
-                          <TableCell align="right" sx={{ borderBottom: "1px solid #eee" }}>
+                          <TableCell align="right" sx={{ borderBottom: isSeparatorRow ? "none" : "1px solid #eee" }}>
                             <TextField
                               size="small"
                               value={buyFixedCosts[index] || ""}
@@ -580,7 +666,7 @@ function App() {
                               sx={{ width: "90px" }}
                             />
                           </TableCell>
-                          <TableCell align="right" sx={{ borderBottom: "1px solid #eee" }}>
+                          <TableCell align="right" sx={{ borderBottom: isSeparatorRow ? "none" : "1px solid #eee" }}>
                             <TextField
                               size="small"
                               value={sellLaborCosts[index] || ""}
@@ -590,7 +676,7 @@ function App() {
                               sx={{ width: "90px" }}
                             />
                           </TableCell>
-                          <TableCell align="right" sx={{ borderBottom: "1px solid #eee" }}>
+                          <TableCell align="right" sx={{ borderBottom: isSeparatorRow ? "none" : "1px solid #eee" }}>
                             <TextField
                               size="small"
                               value={sellFixedCosts[index] || ""}
@@ -606,8 +692,21 @@ function App() {
                   );
                 })}
               </TableBody>
-            </Table>
-          </TableContainer>
+                </Table>
+              </TableContainer>
+            </Box>
+
+            {/* Right: currency bar column */}
+            <Box
+              sx={{
+                flex: { xs: 1, md: "0 0 auto" },
+                width: { xs: "100%", md: "220px", lg: "240px" },
+                marginTop: { xs: 2, md: 0 },
+              }}
+            >
+              <CurrencyBar currencyRates={currencyRates} formatNumber={formatNumber} />
+            </Box>
+          </Box>
       </Box>
     </Box>
   );
