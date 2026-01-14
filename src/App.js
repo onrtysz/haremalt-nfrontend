@@ -28,10 +28,10 @@ const getBackendUrl = () => {
   }
   // Production URL fallback
   if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
-    return "https://haremaltinbackend.onrender.com";
+    return "https://apiharem.kuyumcufatih.com";
   }
   // Development URL
-  return "http://localhost:4002";
+  return "https://apiharem.kuyumcufatih.com";
 };
 
 const BACKEND_URL = getBackendUrl();
