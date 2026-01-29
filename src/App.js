@@ -14,8 +14,6 @@ import {
   Typography,
   IconButton,
 } from "@mui/material";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import SaveIcon from "@mui/icons-material/Save";
@@ -49,6 +47,24 @@ function App() {
     return [];
   });
   const [goldPrice, setGoldPrice] = useState(null);
+  const [silverPrice, setSilverPrice] = useState(() => {
+    const saved = localStorage.getItem("silverPrice");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return { key: "Gümüş", buy: "0", sell: "0", percent: "0", arrow: "up" };
+  });
+  const [onsPrice, setOnsPrice] = useState(() => {
+    const saved = localStorage.getItem("onsPrice");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return { key: "ONS", buy: "0", sell: "0", percent: "0", arrow: "up" };
+  });
   const [currencyRates, setCurrencyRates] = useState(() => {
     const saved = localStorage.getItem("currencyRates");
     if (saved) {
@@ -125,18 +141,9 @@ function App() {
 
   const [showInputs, setShowInputs] = useState(false);
   const [calculatedPrices, setCalculatedPrices] = useState([]);
-  const [cellColors, setCellColors] = useState({});
   
   // Keep track of last calculated price to avoid recalculating on every update
   const lastCalculatedPriceRef = useRef(null);
-
-  const setCellColor = (index, color) => {
-    setCellColors((prevColors) => ({ ...prevColors, [index]: color }));
-
-    setTimeout(() => {
-      setCellColors((prevColors) => ({ ...prevColors, [index]: "transparent" }));
-    }, 5000);
-  };
 
   const handleCalculatePrices = useCallback(async () => {
     try {
@@ -149,29 +156,20 @@ function App() {
           sellFixedCosts,
         }
       );
+
+      console.log("🔍 [/bracelet-price] response:", response.data);
       
-      // Tüm state'leri güncelle
+      // Update all states
       const hesaplananData = response.data.hesaplanan || [];
       setHesaplananFiyat(hesaplananData);
       setCalculatedPrices(hesaplananData);
       
-      // localStorage'a kaydet
+      // Save to localStorage
       localStorage.setItem("hesaplananFiyat", JSON.stringify(hesaplananData));
       localStorage.setItem("calculatedPrices", JSON.stringify(hesaplananData));
   
-      // Renk değişimlerini uygula
-      if (hesaplananData) {
-        hesaplananData.forEach((item, index) => {
-          if (item.arrow === "up") {
-            setCellColor(index, "#35C051");
-          } else if (item.arrow === "down") {
-            setCellColor(index, "red");
-          }
-        });
-      }
-  
     } catch (error) {
-      // Optional: handle error reporting here
+      console.error("Error calculating prices:", error);
     }
   }, [buyLaborCosts, sellLaborCosts, buyFixedCosts, sellFixedCosts]);
 
@@ -202,20 +200,64 @@ function App() {
       upgrade: true,
     });
 
-    socket.on("connect", () => {});
+    socket.on("connect", () => {
+      console.log("🔌 WS connected to backend:", BACKEND_URL);
+    });
 
-    socket.on("connect_error", () => {});
+    socket.on("connect_error", (error) => {
+      console.log("⚠️ WS connect_error:", error?.message || error);
+    });
 
-    socket.on("error", () => {});
+    socket.on("error", (error) => {
+      console.log("⚠️ WS error:", error);
+    });
 
     // Listen for initial gold price when connecting
     socket.on("initialGoldPrice", (message) => {
+      console.log("💰 [WS] initialGoldPrice:", message);
       setGoldPrice(message.data);
     });
 
     // Listen for real-time gold price updates from WebSocket
     socket.on("goldPriceUpdate", (message) => {
+      console.log("💰 [WS] goldPriceUpdate:", message);
       setGoldPrice(message.data);
+    });
+
+    // Listen for initial silver price
+    socket.on("initialSilverPrice", (message) => {
+      console.log("🥈 [WS] initialSilverPrice:", message);
+      if (message.data) {
+        setSilverPrice(message.data);
+        localStorage.setItem("silverPrice", JSON.stringify(message.data));
+      }
+    });
+
+    // Listen for real-time silver price updates
+    socket.on("silverPriceUpdate", (message) => {
+      console.log("🥈 [WS] silverPriceUpdate:", message);
+      if (message.data) {
+        setSilverPrice(message.data);
+        localStorage.setItem("silverPrice", JSON.stringify(message.data));
+      }
+    });
+
+    // Listen for initial ONS price
+    socket.on("initialOnsPrice", (message) => {
+      console.log("🏆 [WS] initialOnsPrice:", message);
+      if (message.data) {
+        setOnsPrice(message.data);
+        localStorage.setItem("onsPrice", JSON.stringify(message.data));
+      }
+    });
+
+    // Listen for real-time ONS price updates
+    socket.on("onsPriceUpdate", (message) => {
+      console.log("🏆 [WS] onsPriceUpdate:", message);
+      if (message.data) {
+        setOnsPrice(message.data);
+        localStorage.setItem("onsPrice", JSON.stringify(message.data));
+      }
     });
 
     // Listen for initial currency rates
@@ -252,10 +294,11 @@ function App() {
   // Auto-recalculate when gold price or labor/fixed costs change
   useEffect(() => {
     if (goldPrice && goldPrice[0]) {
-      // Sadece fiyat gerçekten değişirse hesapla
+      // Only recalculate if price actually changed
       const currentPrice = goldPrice[0].buy;
       
       if (lastCalculatedPriceRef.current !== currentPrice) {
+        console.log("🔄 Auto recalculation triggered. Old price:", lastCalculatedPriceRef.current, "New price:", currentPrice);
         lastCalculatedPriceRef.current = currentPrice;
         handleCalculatePrices();
       }
@@ -314,13 +357,6 @@ function App() {
     
     alert("Değerler silindi!");
   };
-
-  
-
-  // useEffect(() => {
-  //   handleCalculatePrices();
-  // }, [buyLaborCosts, sellLaborCosts, buyFixedCosts, sellFixedCosts]);
-
 
   return (
     <Box
@@ -452,7 +488,7 @@ function App() {
                     align="center"
                     sx={{
                       fontWeight: "900",
-                      color: "#333",
+                      color: "#35C051",
                       borderBottom: "3px solid #d4af37",
                       fontSize: { xs: "11px", sm: "13px", md: "15px" },
                       padding: { xs: "4px 2px", md: "8px 4px" },
@@ -464,25 +500,13 @@ function App() {
                     align="center"
                     sx={{
                       fontWeight: "900",
-                      color: "#333",
+                      color: "#e74c3c",
                       borderBottom: "3px solid #d4af37",
                       fontSize: { xs: "11px", sm: "13px", md: "15px" },
                       padding: { xs: "4px 2px", md: "8px 4px" },
                     }}
                   >
                     Satış
-                  </TableCell>
-                  <TableCell
-                    align="center"
-                    sx={{
-                      fontWeight: "900",
-                      color: "#333",
-                      borderBottom: "3px solid #d4af37",
-                      fontSize: { xs: "11px", sm: "13px", md: "15px" },
-                      padding: { xs: "4px 2px", md: "8px 4px" },
-                    }}
-                  >
-                    Fark (%)
                   </TableCell>
                   {showInputs && (
                     <>
@@ -535,11 +559,75 @@ function App() {
                 </TableRow>
               </TableHead>
               <TableBody>
+                {/* ONS price row - always at top */}
+                {onsPrice && parseFloat(onsPrice.buy) > 0 && (
+                  <TableRow
+                    sx={{
+                      backgroundColor: "#fff8e1",
+                      borderBottom: "2px solid #d4af37",
+                      "&:hover": {
+                        backgroundColor: "#fff3c4",
+                      },
+                    }}
+                  >
+                    <TableCell
+                      align="center"
+                      sx={{
+                        color: "#d4af37",
+                        fontWeight: "900",
+                        borderBottom: "none",
+                        padding: "4px 4px",
+                      }}
+                    >
+                      <Box>
+                        <Typography sx={{ fontSize: "18px", fontWeight: "900", lineHeight: 1.2 }}>
+                          🏆 ONS
+                        </Typography>
+                        <Typography sx={{ fontSize: "13px", color: "#999", fontWeight: "bold", lineHeight: 1.1 }}>
+                          ALTIN (USD)
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell
+                      align="center"
+                      sx={{
+                        color: "#35C051",
+                        fontWeight: "900",
+                        borderBottom: "none",
+                        fontSize: "17px",
+                        padding: "4px 2px",
+                        lineHeight: 1.3,
+                      }}
+                    >
+                      {formatNumber(parseFloat(onsPrice.buy))}
+                    </TableCell>
+                    <TableCell
+                      align="center"
+                      sx={{
+                        color: "#e74c3c",
+                        fontWeight: "900",
+                        borderBottom: "none",
+                        fontSize: "17px",
+                        padding: "4px 2px",
+                        lineHeight: 1.3,
+                      }}
+                    >
+                      {formatNumber(parseFloat(onsPrice.sell))}
+                    </TableCell>
+                    {showInputs && (
+                      <>
+                        <TableCell align="right" sx={{ borderBottom: "none" }} />
+                        <TableCell align="right" sx={{ borderBottom: "none" }} />
+                        <TableCell align="right" sx={{ borderBottom: "none" }} />
+                        <TableCell align="right" sx={{ borderBottom: "none" }} />
+                      </>
+                    )}
+                  </TableRow>
+                )}
+
                 {hesaplananFiyat?.map((item, index) => {
                   // Use arrow value from item for trend indicator
                   const currentPrice = calculatedPrices[index]?.buy || item.buy;
-                  const isPositive = item.arrow === "up";
-                  const isNegative = item.arrow === "down";
 
                   // Add stronger separator after specific products for readability
                   const isSeparatorRow =
@@ -583,13 +671,12 @@ function App() {
                       <TableCell
                         align="center"
                         sx={{
-                          color: cellColors[index] === "#35C051" ? "#35C051" : cellColors[index] === "red" ? "#e74c3c" : "#000",
+                          color: "#35C051",
                           fontWeight: "900",
                           borderBottom: isSeparatorRow ? "none" : "1px solid #eee",
                           fontSize: "17px",
                           padding: "4px 2px",
                           lineHeight: 1.3,
-                          transition: "color 0.3s",
                         }}
                       >
                         {formatNumber(currentPrice)}
@@ -597,52 +684,15 @@ function App() {
                       <TableCell
                         align="center"
                         sx={{
-                          color: cellColors[index] === "#35C051" ? "#35C051" : cellColors[index] === "red" ? "#e74c3c" : "#000",
+                          color: "#e74c3c",
                           fontWeight: "900",
                           borderBottom: isSeparatorRow ? "none" : "1px solid #eee",
                           fontSize: "17px",
                           padding: "4px 2px",
                           lineHeight: 1.3,
-                          transition: "color 0.3s",
                         }}
                       >
                         {formatNumber(calculatedPrices[index]?.sell || item.sell)}
-                      </TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{
-                          borderBottom: isSeparatorRow ? "none" : "1px solid #eee",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: "3px",
-                          padding: "4px 4px",
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "2px",
-                            color:
-                              isPositive
-                                ? "#35C051"
-                                : isNegative
-                                ? "#e74c3c"
-                                : "#999",
-                          }}
-                        >
-                          {isPositive ? (
-                            <TrendingUpIcon sx={{ fontSize: "18px" }} />
-                          ) : isNegative ? (
-                            <TrendingDownIcon sx={{ fontSize: "18px" }} />
-                          ) : (
-                            <Typography sx={{ fontSize: "16px", fontWeight: "900", lineHeight: 1.2 }}>−</Typography>
-                          )}
-                          <Typography sx={{ fontSize: "16px", fontWeight: "900", lineHeight: 1.2 }}>
-                            {item.percent || "0.00"}%
-                          </Typography>
-                        </Box>
                       </TableCell>
                       {showInputs && (
                         <>
@@ -696,16 +746,26 @@ function App() {
               </TableContainer>
             </Box>
 
-            {/* Right: currency bar column */}
+            {/* Right: currency bar column - hidden on mobile, shown on desktop */}
             <Box
               sx={{
-                flex: { xs: 1, md: "0 0 auto" },
-                width: { xs: "100%", md: "220px", lg: "240px" },
-                marginTop: { xs: 2, md: 0 },
+                display: { xs: "none", md: "block" },
+                flex: "0 0 auto",
+                width: { md: "220px", lg: "240px" },
               }}
             >
-              <CurrencyBar currencyRates={currencyRates} formatNumber={formatNumber} />
+              <CurrencyBar currencyRates={currencyRates} formatNumber={formatNumber} silverPrice={silverPrice} isMobile={false} />
             </Box>
+          </Box>
+
+          {/* Mobile: currency bar below table */}
+          <Box
+            sx={{
+              display: { xs: "block", md: "none" },
+              marginTop: 2,
+            }}
+          >
+            <CurrencyBar currencyRates={currencyRates} formatNumber={formatNumber} silverPrice={silverPrice} isMobile={true} />
           </Box>
       </Box>
     </Box>
