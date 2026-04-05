@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import io from "socket.io-client";
 import {
@@ -9,27 +10,24 @@ import {
   TableHead,
   TableRow,
   Paper,
-  TextField,
   Box,
   Typography,
   IconButton,
 } from "@mui/material";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import SaveIcon from "@mui/icons-material/Save";
-import DeleteIcon from "@mui/icons-material/Delete";
+import SettingsIcon from "@mui/icons-material/Settings";
 import CurrencyBar from "./CurrencyBar";
+import { settingsService } from "./services/api";
 
 // Backend URL configuration
 const getBackendUrl = () => {
   if (process.env.REACT_APP_BACKEND_URL) {
     return process.env.REACT_APP_BACKEND_URL;
   }
-  // Production URL fallback
-  if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
-    return "https://apiharem.kuyumcufatih.com";
-  }
   // Development URL
+  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+    return "http://localhost:4002";
+  }
+  // Production URL fallback
   return "https://apiharem.kuyumcufatih.com";
 };
 
@@ -120,27 +118,17 @@ function App() {
     return Array(12).fill(defaultValue);
   };
 
-  const [buyLaborCosts, setBuyLaborCosts] = useState(() => {
-    const saved = localStorage.getItem("buyLaborCosts");
-    return saved ? ensureArray(JSON.parse(saved), "") : Array(12).fill("");
-  });
-  const [sellLaborCosts, setSellLaborCosts] = useState(() => {
-    const saved = localStorage.getItem("sellLaborCosts");
-    return saved ? ensureArray(JSON.parse(saved), "") : Array(12).fill("");
-  });
-  const [buyFixedCosts, setBuyFixedCosts] = useState(() => {
-    const saved = localStorage.getItem("buyFixedCosts");
-    const defaults = [1.0, 0.995, 0.916, 0.913, 6.38, 3.265, 6.53/4, 6.44, 3.265, 6.39/4, 0.919, 0.921];
-    return saved ? ensureArray(JSON.parse(saved), 1.0) : defaults;
-  });
-  const [sellFixedCosts, setSellFixedCosts] = useState(() => {
-    const saved = localStorage.getItem("sellFixedCosts");
-    const defaults = [1.0, 0.995, 0.916, 0.913, 6.38, 3.265, 6.53/4, 6.44, 3.265, 6.39/4, 0.919, 0.921];
-    return saved ? ensureArray(JSON.parse(saved), 1.0) : defaults;
-  });
+  const defaultFixedCosts = [1, 0.995, 0.916, 0.913, 6.38, 3.265, 1.6325, 6.44, 3.265, 1.5975, 0.919, 0.921];
+  
+  const [buyLaborCosts, setBuyLaborCosts] = useState(Array(12).fill(0));
+  const [sellLaborCosts, setSellLaborCosts] = useState(Array(12).fill(0));
+  const [buyFixedCosts, setBuyFixedCosts] = useState(defaultFixedCosts);
+  const [sellFixedCosts, setSellFixedCosts] = useState(defaultFixedCosts);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
-  const [showInputs, setShowInputs] = useState(false);
   const [calculatedPrices, setCalculatedPrices] = useState([]);
+  
+  const navigate = useNavigate();
   
   // Keep track of last calculated price to avoid recalculating on every update
   const lastCalculatedPriceRef = useRef(null);
@@ -172,6 +160,28 @@ function App() {
       console.error("Error calculating prices:", error);
     }
   }, [buyLaborCosts, sellLaborCosts, buyFixedCosts, sellFixedCosts]);
+
+  // Fetch settings from API on mount
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await settingsService.getSettings();
+        if (response.success && response.settings) {
+          const s = response.settings;
+          setBuyLaborCosts(ensureArray(s.buyLaborCosts, 0));
+          setSellLaborCosts(ensureArray(s.sellLaborCosts, 0));
+          setBuyFixedCosts(ensureArray(s.buyFixedCosts, 1.0));
+          setSellFixedCosts(ensureArray(s.sellFixedCosts, 1.0));
+          setSettingsLoaded(true);
+          console.log("✅ Settings loaded from API");
+        }
+      } catch (error) {
+        console.error("Failed to fetch settings:", error);
+        setSettingsLoaded(true);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   // Update time every second
   useEffect(() => {
@@ -284,6 +294,18 @@ function App() {
       }
     });
 
+    // Listen for settings updates from admin
+    socket.on("settingsUpdate", (message) => {
+      console.log("⚙️ [WS] settingsUpdate:", message);
+      if (message.data) {
+        const s = message.data;
+        setBuyLaborCosts(ensureArray(s.buyLaborCosts, 0));
+        setSellLaborCosts(ensureArray(s.sellLaborCosts, 0));
+        setBuyFixedCosts(ensureArray(s.buyFixedCosts, 1.0));
+        setSellFixedCosts(ensureArray(s.sellFixedCosts, 1.0));
+      }
+    });
+
     socket.on("disconnect", () => {});
 
     return () => {
@@ -291,71 +313,18 @@ function App() {
     };
   }, []);
 
-  // Auto-recalculate when gold price or labor/fixed costs change
+  // Auto-recalculate when gold price or labor/fixed costs change (only after settings loaded)
   useEffect(() => {
+    if (!settingsLoaded) return;
+    
     if (goldPrice && goldPrice[0]) {
-      // Only recalculate if price actually changed
-      const currentPrice = goldPrice[0].buy;
-      
-      if (lastCalculatedPriceRef.current !== currentPrice) {
-        console.log("🔄 Auto recalculation triggered. Old price:", lastCalculatedPriceRef.current, "New price:", currentPrice);
-        lastCalculatedPriceRef.current = currentPrice;
-        handleCalculatePrices();
-      }
+      console.log("🔄 Auto recalculation triggered due to price or settings change");
+      handleCalculatePrices();
     }
-  }, [goldPrice, handleCalculatePrices, buyLaborCosts, sellLaborCosts, buyFixedCosts, sellFixedCosts]);
+  }, [goldPrice, handleCalculatePrices, buyLaborCosts, sellLaborCosts, buyFixedCosts, sellFixedCosts, settingsLoaded]);
 
-  const handleBuyLaborCostChange = (index, value) => {
-    const updatedCosts = [...buyLaborCosts];
-    updatedCosts[index] = value;
-    setBuyLaborCosts(updatedCosts);
-  };
-
-  const handleSellLaborCostChange = (index, value) => {
-    const updatedCosts = [...sellLaborCosts];
-    updatedCosts[index] = value;
-    setSellLaborCosts(updatedCosts);
-  };
-
-  const handleBuyFixedCostChange = (index, value) => {
-    const updatedCosts = [...buyFixedCosts];
-    updatedCosts[index] = value;
-    setBuyFixedCosts(updatedCosts);
-  };
-
-  const handleSellFixedCostChange = (index, value) => {
-    const updatedCosts = [...sellFixedCosts];
-    updatedCosts[index] = value;
-    setSellFixedCosts(updatedCosts);
-  };
-
-  const handleSave = () => {
-    localStorage.setItem("buyLaborCosts", JSON.stringify(buyLaborCosts));
-    localStorage.setItem("sellLaborCosts", JSON.stringify(sellLaborCosts));
-    localStorage.setItem("buyFixedCosts", JSON.stringify(buyFixedCosts));
-    localStorage.setItem("sellFixedCosts", JSON.stringify(sellFixedCosts));
-    alert("Değerler kaydedildi!");
-  };
-
-  const toggleInputs = () => {
-    setShowInputs((prev) => !prev);
-  };
-
-  const removeLocalStorage = () => {
-    localStorage.removeItem("buyLaborCosts");
-    localStorage.removeItem("sellLaborCosts");
-    localStorage.removeItem("buyFixedCosts");
-    localStorage.removeItem("sellFixedCosts");
-    
-    // Reset state to default values
-    const fixedCostDefaults = [1.0, 0.995, 0.916, 0.913, 6.38, 3.265, 6.53/4, 6.44, 3.265, 6.39/4, 0.919, 0.921];
-    
-    setBuyLaborCosts(Array(12).fill(""));
-    setSellLaborCosts(Array(12).fill(""));
-    setBuyFixedCosts(fixedCostDefaults);
-    setSellFixedCosts(fixedCostDefaults);
-    
-    alert("Değerler silindi!");
+  const goToAdminPanel = () => {
+    navigate("/admin");
   };
 
   return (
@@ -394,52 +363,23 @@ function App() {
             </Typography>
           </Box>
 
-          {/* Control buttons - Icon based */}
-          <Box sx={{ marginBottom: "8px", display: "flex", gap: "6px", opacity: 0.9, "&:hover": { opacity: 1 },justifyContent: "flex-end" }}>
+          {/* Admin button */}
+          <Box sx={{ marginBottom: "8px", display: "flex", gap: "6px", opacity: 0.6, "&:hover": { opacity: 1 }, justifyContent: "flex-end" }}>
             <IconButton
-              onClick={toggleInputs}
+              onClick={goToAdminPanel}
               sx={{ 
-                color: "#d4af37",
+                color: "#999",
                 fontSize: "20px",
                 transition: "all 0.3s",
                 padding: "4px",
                 "&:hover": {
                   transform: "scale(1.2)",
+                  color: "#d4af37",
                 }
               }}
-              title={showInputs ? "Gizle" : "Göster"}
+              title="Admin Paneli"
             >
-              {showInputs ? <VisibilityOffIcon sx={{ fontSize: "20px" }} /> : <VisibilityIcon sx={{ fontSize: "20px" }} />}
-            </IconButton>
-            <IconButton
-              onClick={handleSave}
-              sx={{ 
-                color: "#d4af37",
-                fontSize: "20px",
-                transition: "all 0.3s",
-                padding: "4px",
-                "&:hover": {
-                  transform: "scale(1.2)",
-                }
-              }}
-              title="Onayla"
-            >
-              <SaveIcon sx={{ fontSize: "20px" }} />
-            </IconButton>
-            <IconButton
-              onClick={removeLocalStorage}
-              sx={{ 
-                color: "#e74c3c",
-                fontSize: "20px",
-                transition: "all 0.3s",
-                padding: "4px",
-                "&:hover": {
-                  transform: "scale(1.2)",
-                }
-              }}
-              title="Sil"
-            >
-              <DeleteIcon sx={{ fontSize: "20px" }} />
+              <SettingsIcon sx={{ fontSize: "20px" }} />
             </IconButton>
           </Box>
 
@@ -460,15 +400,14 @@ function App() {
                   backgroundColor: "#fff",
                   boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
                   borderRadius: "10px",
-                  overflow: showInputs ? { xs: "auto", md: "hidden" } : "hidden",
-                  overflowX: showInputs ? { xs: "auto", md: "visible" } : "visible",
+                  overflow: "hidden",
                   border: "1px solid #d4af37",
                   WebkitOverflowScrolling: "touch",
                 }}
               >
                 <Table
                   size="small"
-                  sx={{ minWidth: showInputs ? { xs: "700px", md: "100%" } : "100%" }}
+                  sx={{ minWidth: "100%" }}
                 >
               <TableHead>
                 <TableRow sx={{ backgroundColor: "#f9f9f9" }}>
@@ -508,54 +447,6 @@ function App() {
                   >
                     Satış
                   </TableCell>
-                  {showInputs && (
-                    <>
-                      <TableCell
-                        align="right"
-                        sx={{
-                          fontWeight: "bold",
-                          color: "#333",
-                          borderBottom: "2px solid #d4af37",
-                          fontSize: "12px",
-                        }}
-                      >
-                        Alış İşçilik
-                      </TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{
-                          fontWeight: "bold",
-                          color: "#333",
-                          borderBottom: "2px solid #d4af37",
-                          fontSize: "12px",
-                        }}
-                      >
-                        Alış Sabit
-                      </TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{
-                          fontWeight: "bold",
-                          color: "#333",
-                          borderBottom: "2px solid #d4af37",
-                          fontSize: "12px",
-                        }}
-                      >
-                        Satış İşçilik
-                      </TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{
-                          fontWeight: "bold",
-                          color: "#333",
-                          borderBottom: "2px solid #d4af37",
-                          fontSize: "12px",
-                        }}
-                      >
-                        Satış Sabit
-                      </TableCell>
-                    </>
-                  )}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -614,14 +505,6 @@ function App() {
                     >
                       {formatNumber(parseFloat(onsPrice.sell))}
                     </TableCell>
-                    {showInputs && (
-                      <>
-                        <TableCell align="right" sx={{ borderBottom: "none" }} />
-                        <TableCell align="right" sx={{ borderBottom: "none" }} />
-                        <TableCell align="right" sx={{ borderBottom: "none" }} />
-                        <TableCell align="right" sx={{ borderBottom: "none" }} />
-                      </>
-                    )}
                   </TableRow>
                 )}
 
@@ -694,50 +577,6 @@ function App() {
                       >
                         {formatNumber(calculatedPrices[index]?.sell || item.sell)}
                       </TableCell>
-                      {showInputs && (
-                        <>
-                          <TableCell align="right" sx={{ borderBottom: isSeparatorRow ? "none" : "1px solid #eee" }}>
-                            <TextField
-                              size="small"
-                              value={buyLaborCosts[index] || ""}
-                              onChange={(e) =>
-                                handleBuyLaborCostChange(index, e.target.value)
-                              }
-                              sx={{ width: "90px" }}
-                            />
-                          </TableCell>
-                          <TableCell align="right" sx={{ borderBottom: isSeparatorRow ? "none" : "1px solid #eee" }}>
-                            <TextField
-                              size="small"
-                              value={buyFixedCosts[index] || ""}
-                              onChange={(e) =>
-                                handleBuyFixedCostChange(index, e.target.value)
-                              }
-                              sx={{ width: "90px" }}
-                            />
-                          </TableCell>
-                          <TableCell align="right" sx={{ borderBottom: isSeparatorRow ? "none" : "1px solid #eee" }}>
-                            <TextField
-                              size="small"
-                              value={sellLaborCosts[index] || ""}
-                              onChange={(e) =>
-                                handleSellLaborCostChange(index, e.target.value)
-                              }
-                              sx={{ width: "90px" }}
-                            />
-                          </TableCell>
-                          <TableCell align="right" sx={{ borderBottom: isSeparatorRow ? "none" : "1px solid #eee" }}>
-                            <TextField
-                              size="small"
-                              value={sellFixedCosts[index] || ""}
-                              onChange={(e) =>
-                                handleSellFixedCostChange(index, e.target.value)
-                              }
-                              sx={{ width: "90px" }}
-                            />
-                          </TableCell>
-                        </>
-                      )}
                     </TableRow>
                   );
                 })}
