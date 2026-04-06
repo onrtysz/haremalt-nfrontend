@@ -108,20 +108,20 @@ function App() {
     return Array.from(rateMap.values());
   };
 
-  // Helper to convert object to array if needed
+  // Helper to convert object to array if needed (13 products)
   const ensureArray = (data, defaultValue) => {
     if (Array.isArray(data)) return data;
     if (typeof data === "object" && data !== null) {
       // Convert object { '0': val, '1': val, ... } to array
-      return Array.from({ length: 12 }, (_, i) => data[i] || defaultValue);
+      return Array.from({ length: 13 }, (_, i) => data[i] || defaultValue);
     }
-    return Array(12).fill(defaultValue);
+    return Array(13).fill(defaultValue);
   };
 
-  const defaultFixedCosts = [1, 0.995, 0.916, 0.913, 6.38, 3.265, 1.6325, 6.44, 3.265, 1.5975, 0.919, 0.921];
+  const defaultFixedCosts = [1, 0.995, 0.916, 0.913, 6.38, 3.265, 1.6325, 6.44, 3.265, 1.5975, 0.919, 0.921, 0.920];
   
-  const [buyLaborCosts, setBuyLaborCosts] = useState(Array(12).fill(0));
-  const [sellLaborCosts, setSellLaborCosts] = useState(Array(12).fill(0));
+  const [buyLaborCosts, setBuyLaborCosts] = useState(Array(13).fill(0));
+  const [sellLaborCosts, setSellLaborCosts] = useState(Array(13).fill(0));
   const [buyFixedCosts, setBuyFixedCosts] = useState(defaultFixedCosts);
   const [sellFixedCosts, setSellFixedCosts] = useState(defaultFixedCosts);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
@@ -474,7 +474,7 @@ function App() {
                         <Typography sx={{ fontSize: "18px", fontWeight: "900", lineHeight: 1.2 }}>
                           🏆 ONS
                         </Typography>
-                        <Typography sx={{ fontSize: "13px", color: "#999", fontWeight: "bold", lineHeight: 1.1 }}>
+                        <Typography sx={{ fontSize: "15px", color: "#999", fontWeight: "bold", lineHeight: 1.1 }}>
                           ALTIN (USD)
                         </Typography>
                       </Box>
@@ -519,6 +519,23 @@ function App() {
                     item.key === "ÇEYREK YENİ";
                   const separatorColor = "#c0c0c0";
 
+                  // Custom subtitles mapping
+                  const subtitles = {
+                    "HAS ALTIN 1000": "Harem 1.000",
+                    "HAS ALTIN 995": "Paketli 24 ayar",
+                    "GRAM ALTIN 916": "Paketli 22 ayar",
+                    "GRAM ALTIN 913": "Hurda altın",
+                    "ZİYNET ESKİ": "Ziynet eski",
+                    "YARIM ESKİ": "Yarım eski",
+                    "ÇEYREK ESKİ": "Çeyrek eski",
+                    "ZİYNET YENİ": "Ziynet yeni",
+                    "YARIM YENİ": "Yarım yeni",
+                    "ÇEYREK YENİ": "Çeyrek yeni",
+                    "BİLEZİK BURMA": "Ajda, çöp, burma",
+                    "BİLEZİK AYNALI": "Cnc",
+                    "KORDON": "Madonna, akıtma",
+                  };
+
                   return (
                     <TableRow
                       key={index}
@@ -546,8 +563,8 @@ function App() {
                           <Typography sx={{ fontSize: "18px", fontWeight: "900", lineHeight: 1.2 }}>
                             {item.key}
                           </Typography>
-                          <Typography sx={{ fontSize: "13px", color: "#999", fontWeight: "bold", lineHeight: 1.1 }}>
-                            {item.key}
+                          <Typography sx={{ fontSize: "15px", color: "#999", fontWeight: "bold", lineHeight: 1.1 }}>
+                            {subtitles[item.key] || item.key}
                           </Typography>
                         </Box>
                       </TableCell>

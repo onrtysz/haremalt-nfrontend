@@ -39,15 +39,17 @@ const PRODUCT_NAMES = [
   'ÇEYREK YENİ',
   'BİLEZİK BURMA',
   'BİLEZİK AYNALI',
+  'KORDON',
 ];
 
 const roundTo25 = (num) => Math.ceil(num / 25) * 25;
+const roundTo5 = (num) => Math.ceil(num / 5) * 5;
 
-const DEFAULT_FIXED_COSTS = [1, 0.995, 0.916, 0.913, 6.38, 3.265, 1.6325, 6.44, 3.265, 1.5975, 0.919, 0.921];
+const DEFAULT_FIXED_COSTS = [1, 0.995, 0.916, 0.913, 6.38, 3.265, 1.6325, 6.44, 3.265, 1.5975, 0.919, 0.921, 0.920];
 
 const AdminPanel = () => {
-  const [buyLaborCosts, setBuyLaborCosts] = useState(Array(12).fill(0));
-  const [sellLaborCosts, setSellLaborCosts] = useState(Array(12).fill(0));
+  const [buyLaborCosts, setBuyLaborCosts] = useState(Array(13).fill(0));
+  const [sellLaborCosts, setSellLaborCosts] = useState(Array(13).fill(0));
   const [buyFixedCosts, setBuyFixedCosts] = useState([...DEFAULT_FIXED_COSTS]);
   const [sellFixedCosts, setSellFixedCosts] = useState([...DEFAULT_FIXED_COSTS]);
   const [loading, setLoading] = useState(true);
@@ -118,7 +120,21 @@ const AdminPanel = () => {
     const fixed = type === 'buy' ? (buyFixedCosts[index] || 1) : (sellFixedCosts[index] || 1);
     
     if (basePrice === 0) return '-';
-    const result = roundTo25((basePrice + labor) * fixed);
+    
+    const rawPrice = (basePrice + labor) * fixed;
+    let result;
+    
+    if (index === 0) {
+      // HAS ALTIN 1000 - Gösterge fiyat, yuvarlanmaz
+      result = rawPrice;
+    } else if (index === 3) {
+      // GRAM ALTIN 913 - 5'in katlarına yuvarlanır
+      result = roundTo5(rawPrice);
+    } else {
+      // Diğer ürünler - 25'in katlarına yuvarlanır
+      result = roundTo25(rawPrice);
+    }
+    
     return result.toLocaleString('tr-TR');
   };
 
@@ -127,10 +143,10 @@ const AdminPanel = () => {
       setLoading(true);
       const response = await settingsService.getSettings();
       if (response.success) {
-        setBuyLaborCosts(response.settings.buyLaborCosts || Array(12).fill(0));
-        setSellLaborCosts(response.settings.sellLaborCosts || Array(12).fill(0));
-        setBuyFixedCosts(response.settings.buyFixedCosts || Array(12).fill(0));
-        setSellFixedCosts(response.settings.sellFixedCosts || Array(12).fill(0));
+        setBuyLaborCosts(response.settings.buyLaborCosts || Array(13).fill(0));
+        setSellLaborCosts(response.settings.sellLaborCosts || Array(13).fill(0));
+        setBuyFixedCosts(response.settings.buyFixedCosts || Array(13).fill(0));
+        setSellFixedCosts(response.settings.sellFixedCosts || Array(13).fill(0));
       }
     } catch (err) {
       setError('Ayarlar yüklenirken hata oluştu');
