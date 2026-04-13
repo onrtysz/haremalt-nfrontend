@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/haremalt-nfrontend/static/css/main.e19c1d88.css",
-    "main.js": "/haremalt-nfrontend/static/js/main.0cbc07dc.js",
+    "main.js": "/haremalt-nfrontend/static/js/main.f4f7ee70.js",
     "static/js/453.d7446e4a.chunk.js": "/haremalt-nfrontend/static/js/453.d7446e4a.chunk.js",
     "index.html": "/haremalt-nfrontend/index.html",
     "main.e19c1d88.css.map": "/haremalt-nfrontend/static/css/main.e19c1d88.css.map",
-    "main.0cbc07dc.js.map": "/haremalt-nfrontend/static/js/main.0cbc07dc.js.map",
+    "main.f4f7ee70.js.map": "/haremalt-nfrontend/static/js/main.f4f7ee70.js.map",
     "453.d7446e4a.chunk.js.map": "/haremalt-nfrontend/static/js/453.d7446e4a.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.e19c1d88.css",
-    "static/js/main.0cbc07dc.js"
+    "static/js/main.f4f7ee70.js"
   ]
 }
