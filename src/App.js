@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import io from "socket.io-client";
@@ -126,9 +126,6 @@ function App() {
     navigate("/login");
   };
   
-  // Keep track of last calculated price to avoid recalculating on every update
-  const lastCalculatedPriceRef = useRef(null);
-
   const handleCalculatePrices = useCallback(async () => {
     try {
       const response = await axios.post(
