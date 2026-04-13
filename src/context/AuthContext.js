@@ -1,12 +1,28 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { authService } from '../services/api';
 
 const AuthContext = createContext(null);
+
+/**
+ * Backend should set role: "admin" | "viewer" (or isAdmin).
+ * If role is omitted (legacy), user is treated as admin so existing accounts keep working.
+ */
+export function deriveIsAdmin(adminUser) {
+  if (!adminUser) return false;
+  if (adminUser.isAdmin === true) return true;
+  if (adminUser.isAdmin === false) return false;
+  const r = adminUser.role;
+  if (r === 'viewer' || r === 'user' || r === 'readonly') return false;
+  if (r === 'admin') return true;
+  return true;
+}
 
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [admin, setAdmin] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const isAdmin = useMemo(() => deriveIsAdmin(admin), [admin]);
 
   useEffect(() => {
     checkAuth();
@@ -49,7 +65,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, admin, loading, login, logout, checkAuth }}>
+    <AuthContext.Provider value={{ isAuthenticated, admin, isAdmin, loading, login, logout, checkAuth }}>
       {children}
     </AuthContext.Provider>
   );

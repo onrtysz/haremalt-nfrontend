@@ -3,31 +3,21 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import io from "socket.io-client";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
   Box,
   Typography,
   IconButton,
+  Button,
 } from "@mui/material";
 import SettingsIcon from "@mui/icons-material/Settings";
 import CurrencyBar from "./CurrencyBar";
-import { settingsService } from "./services/api";
+import { settingsService, TENANT_ID } from "./services/api";
+import { useAuth } from "./context/AuthContext";
 
 // Backend URL configuration
 const getBackendUrl = () => {
   if (process.env.REACT_APP_BACKEND_URL) {
     return process.env.REACT_APP_BACKEND_URL;
   }
-  // Development URL
-  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-    return "http://localhost:4002";
-  }
-  // Production URL fallback
   return "https://apiharem.kuyumcufatih.com";
 };
 
@@ -129,6 +119,12 @@ function App() {
   const [calculatedPrices, setCalculatedPrices] = useState([]);
   
   const navigate = useNavigate();
+  const { isAdmin, logout, admin } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
   
   // Keep track of last calculated price to avoid recalculating on every update
   const lastCalculatedPriceRef = useRef(null);
@@ -297,6 +293,9 @@ function App() {
     // Listen for settings updates from admin
     socket.on("settingsUpdate", (message) => {
       console.log("⚙️ [WS] settingsUpdate:", message);
+      if (message?.tenantId && message.tenantId !== TENANT_ID) {
+        return;
+      }
       if (message.data) {
         const s = message.data;
         setBuyLaborCosts(ensureArray(s.buyLaborCosts, 0));
@@ -324,304 +323,256 @@ function App() {
   }, [goldPrice, handleCalculatePrices, buyLaborCosts, sellLaborCosts, buyFixedCosts, sellFixedCosts, settingsLoaded]);
 
   const goToAdminPanel = () => {
-    navigate("/admin");
+    navigate("/admin/panel");
   };
+
+  const subtitles = {
+    "HAS ALTIN 1000": "Harem 1.000",
+    "HAS ALTIN 995": "Paketli 24 ayar",
+    "GRAM ALTIN 916": "Paketli 22 ayar",
+    "GRAM ALTIN 913": "Hurda altın",
+    "ZİYNET ESKİ": "Ziynet eski",
+    "YARIM ESKİ": "Yarım eski",
+    "ÇEYREK ESKİ": "Çeyrek eski",
+    "ZİYNET YENİ": "Ziynet yeni",
+    "YARIM YENİ": "Yarım yeni",
+    "ÇEYREK YENİ": "Çeyrek yeni",
+    "BİLEZİK BURMA": "Ajda, çöp, burma",
+    "BİLEZİK AYNALI": "Cnc",
+    KORDON: "Madonna, akıtma",
+  };
+
+  const separatorKeys = ["GRAM ALTIN 913", "ÇEYREK ESKİ", "ÇEYREK YENİ"];
+  const groupedProducts = [];
+  if (Array.isArray(hesaplananFiyat) && hesaplananFiyat.length > 0) {
+    let start = 0;
+    separatorKeys.forEach((key) => {
+      const idx = hesaplananFiyat.findIndex((x) => x?.key === key);
+      if (idx >= start) {
+        groupedProducts.push(hesaplananFiyat.slice(start, idx + 1));
+        start = idx + 1;
+      }
+    });
+    if (start < hesaplananFiyat.length) {
+      groupedProducts.push(hesaplananFiyat.slice(start));
+    }
+  }
 
   return (
     <Box
       sx={{
-        backgroundColor: "#f5f5f5",
+        background: "linear-gradient(180deg, #2a2a2a 0%, #3a3833 100%)",
         minHeight: "100vh",
-        padding: "20px",
+        padding: { xs: "10px", sm: "14px", md: "20px" },
+        boxSizing: "border-box",
       }}
     >
 
       <Box
         sx={{
-          maxWidth: { xs: "100%", sm: "90%", md: "80%", lg: "75%" },
+          maxWidth: { xs: "100%", sm: "96%", md: "94%", lg: "92%", xl: "90%" },
           margin: "0 auto",
           display: "flex",
           flexDirection: "column",
           gap: "8px",
           marginBottom: "20px",
-          padding: { xs: "0px", md: "0px" },
+          padding: 0,
+          boxSizing: "border-box",
         }}
       >
           {/* Title and time */}
-          <Box sx={{ marginBottom: "0px", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: { xs: "20px", md: "100px" }, flexWrap: "wrap", gap: "10px" }}>
-            <Typography
-              sx={{
-                color: "#d4af37",
-                fontWeight: "900",
-                fontSize: { xs: "18px", sm: "22px", md: "26px" },
-              }}
-            >
-              ALTIN FİYATLARI
-            </Typography>
-            <Typography sx={{ color: "#999", fontSize: { xs: "12px", sm: "14px", md: "16px" }, fontWeight: "bold" }}>
-              {currentTime}
-            </Typography>
-          </Box>
-
-          {/* Admin button */}
-          <Box sx={{ marginBottom: "8px", display: "flex", gap: "6px", opacity: 0.6, "&:hover": { opacity: 1 }, justifyContent: "flex-end" }}>
-            <IconButton
-              onClick={goToAdminPanel}
-              sx={{ 
-                color: "#999",
-                fontSize: "20px",
-                transition: "all 0.3s",
-                padding: "4px",
-                "&:hover": {
-                  transform: "scale(1.2)",
-                  color: "#d4af37",
-                }
-              }}
-              title="Admin Paneli"
-            >
-              <SettingsIcon sx={{ fontSize: "20px" }} />
-            </IconButton>
-          </Box>
-
-          {/* Price table + currency bar layout */}
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: { xs: "column", md: "row" },
-              alignItems: "flex-start",
-              gap: { xs: 2, md: 3 },
-            }}
-          >
-            {/* Left: price table */}
-            <Box sx={{ flex: 3, width: "100%" }}>
-              <TableContainer
-                component={Paper}
+          <Box sx={{ marginBottom: "0px", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: { xs: "8px", md: "24px" }, flexWrap: "wrap", gap: "10px" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Box
+                component="img"
+                src="/siverek-emblem.svg"
+                alt="Siverek Kuyumcular Odası Amblem"
                 sx={{
-                  backgroundColor: "#fff",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                  borderRadius: "10px",
-                  overflow: "hidden",
-                  border: "1px solid #d4af37",
-                  WebkitOverflowScrolling: "touch",
+                  width: { xs: 44, sm: 52, md: 58 },
+                  height: { xs: 44, sm: 52, md: 58 },
+                  borderRadius: "50%",
+                  boxShadow: "0 4px 14px rgba(0,0,0,0.35)",
+                }}
+              />
+              <Box>
+              <Typography
+                sx={{
+                  color: "#d4af37",
+                  fontWeight: "900",
+                  fontSize: { xs: "16px", sm: "20px", md: "24px" },
                 }}
               >
-                <Table
-                  size="small"
-                  sx={{ minWidth: "100%" }}
-                >
-              <TableHead>
-                <TableRow sx={{ backgroundColor: "#f9f9f9" }}>
-                  <TableCell
-                    align="center"
-                    sx={{
-                      fontWeight: "900",
-                      color: "#333",
-                      borderBottom: "3px solid #d4af37",
-                      fontSize: { xs: "11px", sm: "13px", md: "15px" },
-                      padding: { xs: "4px 2px", md: "8px 4px" },
-                    }}
-                  >
-                    Ürün
-                  </TableCell>
-                  <TableCell
-                    align="center"
-                    sx={{
-                      fontWeight: "900",
-                      color: "#35C051",
-                      borderBottom: "3px solid #d4af37",
-                      fontSize: { xs: "11px", sm: "13px", md: "15px" },
-                      padding: { xs: "4px 2px", md: "8px 4px" },
-                    }}
-                  >
-                    Alış
-                  </TableCell>
-                  <TableCell
-                    align="center"
-                    sx={{
-                      fontWeight: "900",
-                      color: "#e74c3c",
-                      borderBottom: "3px solid #d4af37",
-                      fontSize: { xs: "11px", sm: "13px", md: "15px" },
-                      padding: { xs: "4px 2px", md: "8px 4px" },
-                    }}
-                  >
-                    Satış
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {/* ONS price row - always at top */}
-                {onsPrice && parseFloat(onsPrice.buy) > 0 && (
-                  <TableRow
-                    sx={{
-                      backgroundColor: "#fff8e1",
-                      borderBottom: "2px solid #d4af37",
-                      "&:hover": {
-                        backgroundColor: "#fff3c4",
-                      },
-                    }}
-                  >
-                    <TableCell
-                      align="center"
-                      sx={{
-                        color: "#d4af37",
-                        fontWeight: "900",
-                        borderBottom: "none",
-                        padding: "4px 4px",
-                      }}
-                    >
-                      <Box>
-                        <Typography sx={{ fontSize: "18px", fontWeight: "900", lineHeight: 1.2 }}>
-                          🏆 ONS
-                        </Typography>
-                        <Typography sx={{ fontSize: "15px", color: "#999", fontWeight: "bold", lineHeight: 1.1 }}>
-                          ALTIN (USD)
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell
-                      align="center"
-                      sx={{
-                        color: "#35C051",
-                        fontWeight: "900",
-                        borderBottom: "none",
-                        fontSize: "17px",
-                        padding: "4px 2px",
-                        lineHeight: 1.3,
-                      }}
-                    >
-                      {formatNumber(parseFloat(onsPrice.buy))}
-                    </TableCell>
-                    <TableCell
-                      align="center"
-                      sx={{
-                        color: "#e74c3c",
-                        fontWeight: "900",
-                        borderBottom: "none",
-                        fontSize: "17px",
-                        padding: "4px 2px",
-                        lineHeight: 1.3,
-                      }}
-                    >
-                      {formatNumber(parseFloat(onsPrice.sell))}
-                    </TableCell>
-                  </TableRow>
-                )}
-
-                {hesaplananFiyat?.map((item, index) => {
-                  // Use arrow value from item for trend indicator
-                  const currentPrice = calculatedPrices[index]?.buy || item.buy;
-
-                  // Add stronger separator after specific products for readability
-                  const isSeparatorRow =
-                    item.key === "GRAM ALTIN 913" ||
-                    item.key === "ÇEYREK ESKİ" ||
-                    item.key === "ÇEYREK YENİ";
-                  const separatorColor = "#c0c0c0";
-
-                  // Custom subtitles mapping
-                  const subtitles = {
-                    "HAS ALTIN 1000": "Harem 1.000",
-                    "HAS ALTIN 995": "Paketli 24 ayar",
-                    "GRAM ALTIN 916": "Paketli 22 ayar",
-                    "GRAM ALTIN 913": "Hurda altın",
-                    "ZİYNET ESKİ": "Ziynet eski",
-                    "YARIM ESKİ": "Yarım eski",
-                    "ÇEYREK ESKİ": "Çeyrek eski",
-                    "ZİYNET YENİ": "Ziynet yeni",
-                    "YARIM YENİ": "Yarım yeni",
-                    "ÇEYREK YENİ": "Çeyrek yeni",
-                    "BİLEZİK BURMA": "Ajda, çöp, burma",
-                    "BİLEZİK AYNALI": "Cnc",
-                    "KORDON": "Madonna, akıtma",
-                  };
-
-                  return (
-                    <TableRow
-                      key={index}
-                      sx={{
-                        backgroundColor: index % 2 === 0 ? "#ffffff" : "#eeeeee",
-                        transition: "background-color 0.3s",
-                        "&:hover": {
-                          backgroundColor: index % 2 === 0 ? "#f5f5f5" : "#e5e5e5",
-                        },
-                        borderBottom: isSeparatorRow
-                          ? `2px solid ${separatorColor}`
-                          : "none",
-                      }}
-                    >
-                      <TableCell
-                        align="center"
-                        sx={{
-                          color: "#d4af37",
-                          fontWeight: "900",
-                          borderBottom: isSeparatorRow ? "none" : "1px solid #eee",
-                          padding: "4px 4px",
-                        }}
-                      >
-                        <Box>
-                          <Typography sx={{ fontSize: "18px", fontWeight: "900", lineHeight: 1.2 }}>
-                            {item.key}
-                          </Typography>
-                          <Typography sx={{ fontSize: "15px", color: "#999", fontWeight: "bold", lineHeight: 1.1 }}>
-                            {subtitles[item.key] || item.key}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell
-                        align="center"
-                        sx={{
-                          color: "#35C051",
-                          fontWeight: "900",
-                          borderBottom: isSeparatorRow ? "none" : "1px solid #eee",
-                          fontSize: "17px",
-                          padding: "4px 2px",
-                          lineHeight: 1.3,
-                        }}
-                      >
-                        {formatNumber(currentPrice)}
-                      </TableCell>
-                      <TableCell
-                        align="center"
-                        sx={{
-                          color: "#e74c3c",
-                          fontWeight: "900",
-                          borderBottom: isSeparatorRow ? "none" : "1px solid #eee",
-                          fontSize: "17px",
-                          padding: "4px 2px",
-                          lineHeight: 1.3,
-                        }}
-                      >
-                        {formatNumber(calculatedPrices[index]?.sell || item.sell)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-                </Table>
-              </TableContainer>
+                {admin?.shopName || "SIVEREK KUYUMCULAR ODASI"}
+              </Typography>
+              <Typography
+                sx={{
+                  color: "#888",
+                  fontWeight: "600",
+                  fontSize: { xs: "11px", sm: "12px", md: "13px" },
+                  mt: 0.25,
+                }}
+              >
+                SIVEREK KUYUMCULAR ODASI FIYAT EKRANI
+              </Typography>
             </Box>
-
-            {/* Right: currency bar column - hidden on mobile, shown on desktop */}
-            <Box
-              sx={{
-                display: { xs: "none", md: "block" },
-                flex: "0 0 auto",
-                width: { md: "220px", lg: "240px" },
-              }}
-            >
-              <CurrencyBar currencyRates={currencyRates} formatNumber={formatNumber} silverPrice={silverPrice} isMobile={false} />
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              <Typography sx={{ color: "#999", fontSize: { xs: "12px", sm: "14px", md: "16px" }, fontWeight: "bold" }}>
+                {currentTime}
+              </Typography>
+              <Button
+                size="small"
+                onClick={handleLogout}
+                sx={{
+                  textTransform: "none",
+                  color: "#e6c76a",
+                  minWidth: "auto",
+                  fontSize: { xs: "11px", sm: "12px" },
+                  border: "1px solid #7a6320",
+                  borderRadius: "8px",
+                  "&:hover": { borderColor: "#d4af37", backgroundColor: "#1b1b1b" },
+                }}
+              >
+                Çıkış
+              </Button>
             </Box>
           </Box>
 
-          {/* Mobile: currency bar below table */}
+          {/* Admin-only: price & labor settings */}
+          {isAdmin && (
+            <Box sx={{ marginBottom: "8px", display: "flex", gap: "6px", opacity: 0.6, "&:hover": { opacity: 1 }, justifyContent: "flex-end" }}>
+              <IconButton
+                onClick={goToAdminPanel}
+                sx={{
+                  color: "#d4af37",
+                  fontSize: "20px",
+                  transition: "all 0.3s",
+                  padding: "4px",
+                  "&:hover": {
+                    transform: "scale(1.2)",
+                    color: "#d4af37",
+                  },
+                }}
+                title="Fiyat ve işçilik ayarları"
+              >
+                <SettingsIcon sx={{ fontSize: "20px" }} />
+              </IconButton>
+            </Box>
+          )}
+
+          {/* New layout: product cards + side market panel */}
           <Box
             sx={{
-              display: { xs: "block", md: "none" },
-              marginTop: 2,
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", lg: "2.5fr 1fr" },
+              gap: { xs: 2, md: 2.5, lg: 3 },
+              alignItems: "start",
             }}
           >
-            <CurrencyBar currencyRates={currencyRates} formatNumber={formatNumber} silverPrice={silverPrice} isMobile={true} />
+            <Box
+              sx={{
+                background: "linear-gradient(160deg, rgba(247,243,232,0.96) 0%, rgba(236,229,210,0.96) 100%)",
+                border: "1px solid #b79a4c",
+                borderRadius: "16px",
+                padding: { xs: 1.25, md: 1.75 },
+                boxShadow: "0 10px 28px rgba(0,0,0,0.22)",
+              }}
+            >
+              <Typography sx={{ color: "#8f6f20", fontWeight: 900, letterSpacing: 0.6, mb: 1.2, fontSize: { xs: "17px", md: "19px" } }}>
+                GUNCEL URUN FIYATLARI
+              </Typography>
+
+              <Box>
+                {groupedProducts.map((group, groupIndex) => (
+                  <Box
+                    key={groupIndex}
+                    sx={{
+                      mt: groupIndex === 0 ? 1 : 1.5,
+                      pt: groupIndex === 0 ? 0 : 1.5,
+                      borderTop: groupIndex === 0 ? "none" : "1px solid #c6af74",
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", lg: "1fr 1fr 1fr" },
+                        gap: 1,
+                      }}
+                    >
+                      {(groupIndex === 0 && onsPrice
+                        ? [{ key: "__ons__", isOns: true }, ...group]
+                        : group
+                      ).map((item) => {
+                        if (item.isOns) {
+                          return (
+                            <Box
+                              key="ons-card"
+                              sx={{
+                                borderRadius: "12px",
+                                border: "1px solid #b79a4c",
+                                background: "linear-gradient(140deg, rgba(255,244,206,0.9) 0%, rgba(247,232,180,0.82) 100%)",
+                                p: 1.2,
+                              }}
+                            >
+                              <Typography sx={{ color: "#7f6120", fontWeight: 900, fontSize: { xs: "17px", md: "18px" } }}>
+                                ONS ALTIN (USD)
+                              </Typography>
+                              <Box sx={{ display: "flex", justifyContent: "space-between", mt: 0.6 }}>
+                                <Typography sx={{ color: "#7be08f", fontWeight: 900, fontSize: { xs: "20px", md: "22px" } }}>
+                                  {formatNumber(parseFloat(onsPrice.buy) || 0)}
+                                </Typography>
+                                <Typography sx={{ color: "#ff8d7a", fontWeight: 900, fontSize: { xs: "20px", md: "22px" } }}>
+                                  {formatNumber(parseFloat(onsPrice.sell) || 0)}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          );
+                        }
+                        const originalIndex = hesaplananFiyat.findIndex((x) => x?.key === item.key);
+                        const currentPrice = calculatedPrices[originalIndex]?.buy || item.buy;
+                        return (
+                          <Box
+                            key={`${groupIndex}-${item.key}`}
+                            sx={{
+                              borderRadius: "12px",
+                              border: "1px solid #d5c49a",
+                              backgroundColor: "rgba(255,255,255,0.72)",
+                              p: 1.1,
+                              transition: "all .2s ease",
+                              "&:hover": { transform: "translateY(-1px)", borderColor: "#b79a4c", backgroundColor: "rgba(255,255,255,0.95)" },
+                            }}
+                          >
+                            <Typography sx={{ color: "#8a6b22", fontWeight: 900, fontSize: { xs: "17px", md: "18px" }, lineHeight: 1.2 }}>
+                              {item.key}
+                            </Typography>
+                            <Typography sx={{ color: "#7d745b", fontSize: { xs: "13px", md: "14px" }, mb: 0.7 }}>
+                              {subtitles[item.key] || item.key}
+                            </Typography>
+                            <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                              <Typography sx={{ color: "#7be08f", fontWeight: 900, fontSize: { xs: "20px", md: "22px" } }}>
+                                {formatNumber(currentPrice)}
+                              </Typography>
+                              <Typography sx={{ color: "#ff8d7a", fontWeight: 900, fontSize: { xs: "20px", md: "22px" } }}>
+                                {formatNumber(calculatedPrices[originalIndex]?.sell || item.sell)}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+
+            <Box sx={{ width: "100%" }}>
+              <CurrencyBar
+                currencyRates={currencyRates}
+                formatNumber={formatNumber}
+                silverPrice={silverPrice}
+                isMobile={false}
+              />
+            </Box>
           </Box>
       </Box>
     </Box>

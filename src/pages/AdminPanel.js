@@ -22,9 +22,7 @@ import HomeIcon from '@mui/icons-material/Home';
 import { useAuth } from '../context/AuthContext';
 import { settingsService } from '../services/api';
 
-const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  ? 'http://localhost:4002'
-  : 'https://apiharem.kuyumcufatih.com';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://apiharem.kuyumcufatih.com';
 
 const PRODUCT_NAMES = [
   'HAS ALTIN 1000',
@@ -65,14 +63,20 @@ const AdminPanel = () => {
   const [manualGoldPrice, setManualGoldPrice] = useState({ buy: '', sell: '' });
   const [useManualPrice, setUseManualPrice] = useState(false);
   
-  const { isAuthenticated, logout, loading: authLoading } = useAuth();
+  const { isAuthenticated, isAdmin, logout, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      navigate('/admin');
+      navigate('/login');
     }
   }, [isAuthenticated, authLoading, navigate]);
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && !isAdmin) {
+      navigate('/');
+    }
+  }, [isAuthenticated, isAdmin, authLoading, navigate]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -195,7 +199,7 @@ const AdminPanel = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/admin');
+    navigate('/login');
   };
 
   const handleCostChange = (setter, index, value) => {
@@ -218,7 +222,7 @@ const AdminPanel = () => {
     <Box
       sx={{
         minHeight: '100vh',
-        backgroundColor: '#f5f5f5',
+        background: 'linear-gradient(180deg, #2a2a2a 0%, #3a3833 100%)',
         padding: { xs: 2, md: 4 },
       }}
     >
@@ -228,10 +232,10 @@ const AdminPanel = () => {
             Admin Paneli
           </Typography>
           <Box>
-            <IconButton onClick={() => navigate('/')} title="Ana Sayfa">
+            <IconButton onClick={() => navigate('/')} title="Ana Sayfa" sx={{ color: '#d4af37' }}>
               <HomeIcon />
             </IconButton>
-            <IconButton onClick={handleLogout} title="Çıkış Yap" color="error">
+            <IconButton onClick={handleLogout} title="Çıkış Yap" sx={{ color: '#ff8d7a' }}>
               <LogoutIcon />
             </IconButton>
           </Box>
@@ -243,10 +247,10 @@ const AdminPanel = () => {
           </Alert>
         )}
 
-        <Card sx={{ mb: 3, boxShadow: 3 }}>
+        <Card sx={{ mb: 3, boxShadow: '0 10px 28px rgba(0,0,0,0.2)', background: 'linear-gradient(160deg, rgba(247,243,232,0.96) 0%, rgba(236,229,210,0.96) 100%)', border: '1px solid #b79a4c' }}>
           <CardContent>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
-              <Typography variant="h6" fontWeight="bold" sx={{ color: '#333' }}>
+              <Typography variant="h6" fontWeight="bold" sx={{ color: '#8a6b22' }}>
                 İşçilik ve Sabit Maliyet Ayarları
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -267,7 +271,7 @@ const AdminPanel = () => {
                         setManualGoldPrice(prev => ({ ...prev, buy: e.target.value }));
                         setUseManualPrice(true);
                       }}
-                      sx={{ width: '100px' }}
+                      sx={{ width: '100px', '& .MuiInputBase-input': { color: '#f5e8b0' }, '& .MuiInputLabel-root': { color: '#b9a978' }, '& .MuiOutlinedInput-notchedOutline': { borderColor: '#5d4a1b' } }}
                       placeholder="6800"
                     />
                     <TextField
@@ -279,7 +283,7 @@ const AdminPanel = () => {
                         setManualGoldPrice(prev => ({ ...prev, sell: e.target.value }));
                         setUseManualPrice(true);
                       }}
-                      sx={{ width: '100px' }}
+                      sx={{ width: '100px', '& .MuiInputBase-input': { color: '#f5e8b0' }, '& .MuiInputLabel-root': { color: '#b9a978' }, '& .MuiOutlinedInput-notchedOutline': { borderColor: '#5d4a1b' } }}
                       placeholder="6850"
                     />
                     <Chip 
@@ -291,19 +295,20 @@ const AdminPanel = () => {
                 )}
               </Box>
             </Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            <Typography variant="body2" sx={{ mb: 3, color: '#6f6448' }}>
               Bu değerler tüm kullanıcılar için anlık olarak güncellenecektir. Fiyatlar 25'in katlarına yuvarlanır.
               {goldPrice.buy === 0 && " (Canlı fiyat bağlantısı yok - test için manuel fiyat girin)"}
             </Typography>
 
-            <Divider sx={{ mb: 3 }} />
+            <Divider sx={{ mb: 3, borderColor: '#2f2f2f' }} />
 
             <Grid container spacing={2}>
-              <Grid item xs={12}>
+              {/* Desktop/tablet: dense table editor */}
+              <Grid item xs={12} sx={{ display: { xs: 'none', md: 'block' } }}>
                 <Box sx={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
-                      <tr style={{ backgroundColor: '#f9f9f9' }}>
+                      <tr style={{ backgroundColor: '#e8dfc6' }}>
                         <th style={{ padding: '12px 8px', textAlign: 'left', borderBottom: '2px solid #d4af37', fontWeight: 'bold' }}>
                           Ürün
                         </th>
@@ -313,7 +318,7 @@ const AdminPanel = () => {
                         <th style={{ padding: '12px 8px', textAlign: 'center', borderBottom: '2px solid #d4af37', fontWeight: 'bold', color: '#35C051' }}>
                           Alış Sabit
                         </th>
-                        <th style={{ padding: '12px 8px', textAlign: 'center', borderBottom: '2px solid #d4af37', fontWeight: 'bold', color: '#35C051', backgroundColor: '#e8f5e9' }}>
+                        <th style={{ padding: '12px 8px', textAlign: 'center', borderBottom: '2px solid #d4af37', fontWeight: 'bold', color: '#2f8f46', backgroundColor: '#dff1e2' }}>
                           Alış Fiyat
                         </th>
                         <th style={{ padding: '12px 8px', textAlign: 'center', borderBottom: '2px solid #d4af37', fontWeight: 'bold', color: '#e74c3c' }}>
@@ -322,14 +327,14 @@ const AdminPanel = () => {
                         <th style={{ padding: '12px 8px', textAlign: 'center', borderBottom: '2px solid #d4af37', fontWeight: 'bold', color: '#e74c3c' }}>
                           Satış Sabit
                         </th>
-                        <th style={{ padding: '12px 8px', textAlign: 'center', borderBottom: '2px solid #d4af37', fontWeight: 'bold', color: '#e74c3c', backgroundColor: '#ffebee' }}>
+                        <th style={{ padding: '12px 8px', textAlign: 'center', borderBottom: '2px solid #d4af37', fontWeight: 'bold', color: '#d65c4b', backgroundColor: '#f7dfdf' }}>
                           Satış Fiyat
                         </th>
                       </tr>
                     </thead>
                     <tbody>
                       {PRODUCT_NAMES.map((name, index) => (
-                        <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#fff' : '#fafafa' }}>
+                        <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#fbf8ef' : '#f2ead7' }}>
                           <td style={{ padding: '8px', fontWeight: '600', color: '#d4af37' }}>
                             {name}
                           </td>
@@ -383,6 +388,85 @@ const AdminPanel = () => {
                       ))}
                     </tbody>
                   </table>
+                </Box>
+              </Grid>
+
+              {/* Mobile: product cards for touch-friendly editing */}
+              <Grid item xs={12} sx={{ display: { xs: 'block', md: 'none' } }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                  {PRODUCT_NAMES.map((name, index) => (
+                    <Box
+                      key={index}
+                      sx={{
+                        backgroundColor: '#f8f4e8',
+                        border: '1px solid #d5c49a',
+                        borderRadius: '12px',
+                        p: 1.2,
+                      }}
+                    >
+                      <Typography sx={{ fontWeight: 800, color: '#8a6b22', mb: 0.9 }}>
+                        {name}
+                      </Typography>
+
+                      <Grid container spacing={1}>
+                        <Grid item xs={6}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Alış İşçilik"
+                            type="number"
+                            value={buyLaborCosts[index] || ''}
+                            onChange={(e) => handleCostChange(setBuyLaborCosts, index, e.target.value)}
+                            inputProps={{ step: 'any' }}
+                          />
+                        </Grid>
+                        <Grid item xs={6}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Alış Sabit"
+                            type="number"
+                            value={buyFixedCosts[index] || ''}
+                            onChange={(e) => handleCostChange(setBuyFixedCosts, index, e.target.value)}
+                            inputProps={{ step: 'any' }}
+                          />
+                        </Grid>
+                        <Grid item xs={6}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Satış İşçilik"
+                            type="number"
+                            value={sellLaborCosts[index] || ''}
+                            onChange={(e) => handleCostChange(setSellLaborCosts, index, e.target.value)}
+                            inputProps={{ step: 'any' }}
+                          />
+                        </Grid>
+                        <Grid item xs={6}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Satış Sabit"
+                            type="number"
+                            value={sellFixedCosts[index] || ''}
+                            onChange={(e) => handleCostChange(setSellFixedCosts, index, e.target.value)}
+                            inputProps={{ step: 'any' }}
+                          />
+                        </Grid>
+                      </Grid>
+
+                      <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
+                        <Box sx={{ flex: 1, backgroundColor: '#e8f5e9', borderRadius: '8px', py: 0.7, textAlign: 'center' }}>
+                          <Typography sx={{ color: '#2f8f46', fontWeight: 800, fontSize: '12px' }}>Alış</Typography>
+                          <Typography sx={{ color: '#2f8f46', fontWeight: 900 }}>₺{calculatePrice(index, 'buy')}</Typography>
+                        </Box>
+                        <Box sx={{ flex: 1, backgroundColor: '#ffebee', borderRadius: '8px', py: 0.7, textAlign: 'center' }}>
+                          <Typography sx={{ color: '#d65c4b', fontWeight: 800, fontSize: '12px' }}>Satış</Typography>
+                          <Typography sx={{ color: '#d65c4b', fontWeight: 900 }}>₺{calculatePrice(index, 'sell')}</Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+                  ))}
                 </Box>
               </Grid>
             </Grid>

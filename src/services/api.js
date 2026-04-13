@@ -4,13 +4,22 @@ const getBackendUrl = () => {
   if (process.env.REACT_APP_BACKEND_URL) {
     return process.env.REACT_APP_BACKEND_URL;
   }
-  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-    return "http://localhost:4002";
-  }
   return "https://apiharem.kuyumcufatih.com";
 };
 
 const API_URL = getBackendUrl();
+const getTenantId = () => {
+  if (process.env.REACT_APP_TENANT_ID) {
+    return process.env.REACT_APP_TENANT_ID.toLowerCase();
+  }
+  const host = window.location.hostname;
+  if (host === 'localhost' || host === '127.0.0.1') {
+    return 'kuyumcular-odasi-dev';
+  }
+  return 'kuyumcular-odasi';
+};
+
+export const TENANT_ID = getTenantId();
 
 const api = axios.create({
   baseURL: API_URL,
@@ -21,6 +30,7 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('adminToken');
+  config.headers['X-Tenant-Id'] = TENANT_ID;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -32,7 +42,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('adminToken');
-      window.location.href = '/admin';
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }

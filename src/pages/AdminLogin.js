@@ -23,7 +23,7 @@ const AdminLogin = () => {
 
   useEffect(() => {
     if (isAuthenticated && !authLoading) {
-      navigate('/admin/panel');
+      navigate('/');
     }
   }, [isAuthenticated, authLoading, navigate]);
 
@@ -34,7 +34,7 @@ const AdminLogin = () => {
 
     try {
       await login(username, password);
-      navigate('/admin/panel');
+      navigate('/');
     } catch (err) {
       setError(err.response?.data?.error || 'Giriş başarısız');
     } finally {
@@ -57,11 +57,11 @@ const AdminLogin = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#0f0f0f',
         padding: 2,
       }}
     >
-      <Card sx={{ maxWidth: 400, width: '100%', boxShadow: 3 }}>
+      <Card sx={{ maxWidth: 420, width: '100%', boxShadow: '0 8px 28px rgba(0,0,0,0.45)', backgroundColor: '#171717', border: '1px solid #6f5a1f' }}>
         <CardContent sx={{ p: 4 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
             <Box
@@ -69,7 +69,7 @@ const AdminLogin = () => {
                 width: 56,
                 height: 56,
                 borderRadius: '50%',
-                backgroundColor: '#d4af37',
+                background: 'linear-gradient(145deg, #c9a227 0%, #8b6914 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -78,11 +78,11 @@ const AdminLogin = () => {
             >
               <LockOutlinedIcon sx={{ color: 'white', fontSize: 28 }} />
             </Box>
-            <Typography variant="h5" fontWeight="bold" color="#333">
-              Admin Girişi
+            <Typography variant="h5" fontWeight="bold" color="#f0d98b" align="center">
+              Siverek Kuyumcular Odası
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              İşçilik ve fiyat ayarlarını yönetmek için giriş yapın
+            <Typography variant="body2" sx={{ mt: 1, color: '#b9a978' }} align="center">
+              Canlı altın ve döviz fiyatlarını görüntülemek için giriş yapın
             </Typography>
           </Box>
 
@@ -101,6 +101,8 @@ const AdminLogin = () => {
               margin="normal"
               required
               autoFocus
+              InputLabelProps={{ sx: { color: '#b9a978' } }}
+              InputProps={{ sx: { color: '#f5e8b0', '& .MuiOutlinedInput-notchedOutline': { borderColor: '#5d4a1b' }, '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#d4af37' }, '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#d4af37' } } }}
             />
             <TextField
               fullWidth
@@ -110,6 +112,8 @@ const AdminLogin = () => {
               onChange={(e) => setPassword(e.target.value)}
               margin="normal"
               required
+              InputLabelProps={{ sx: { color: '#b9a978' } }}
+              InputProps={{ sx: { color: '#f5e8b0', '& .MuiOutlinedInput-notchedOutline': { borderColor: '#5d4a1b' }, '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#d4af37' }, '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#d4af37' } } }}
             />
             <Button
               type="submit"
@@ -129,16 +133,6 @@ const AdminLogin = () => {
               {loading ? <CircularProgress size={24} color="inherit" /> : 'Giriş Yap'}
             </Button>
           </form>
-
-          <Box sx={{ textAlign: 'center', mt: 2 }}>
-            <Button
-              color="primary"
-              onClick={() => navigate('/')}
-              sx={{ textTransform: 'none' }}
-            >
-              Ana Sayfaya Dön
-            </Button>
-          </Box>
         </CardContent>
       </Card>
     </Box>

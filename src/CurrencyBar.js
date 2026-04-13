@@ -1,9 +1,5 @@
 import React from "react";
 import { Box, Typography } from "@mui/material";
-import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
-import EuroIcon from "@mui/icons-material/Euro";
-import CurrencyPoundIcon from "@mui/icons-material/CurrencyPound";
-import DiamondIcon from "@mui/icons-material/Diamond";
 
 // Currency bar component that displays latest currency rates
 function CurrencyBar({ currencyRates, formatNumber, silverPrice, isMobile = false }) {
@@ -30,32 +26,36 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, isMobile = fals
     }).format(value);
   };
 
-  // Get icon and background color for currency
+  // Unified style tokens for modern currency badges
   const getCurrencyStyle = (key) => {
     switch (key) {
       case "USD":
         return {
-          icon: <AttachMoneyIcon sx={{ fontSize: isMobile ? "20px" : "28px", color: "#fff" }} />,
-          bgColor: "#2e7d32",
-          lightBg: "rgba(46, 125, 50, 0.08)",
+          badgeText: "$",
+          badgeSub: "USD",
+          bgColor: "#2f8f46",
+          lightBg: "rgba(47, 143, 70, 0.12)",
         };
       case "EUR":
         return {
-          icon: <EuroIcon sx={{ fontSize: isMobile ? "20px" : "28px", color: "#fff" }} />,
-          bgColor: "#1565c0",
-          lightBg: "rgba(21, 101, 192, 0.08)",
+          badgeText: "€",
+          badgeSub: "EUR",
+          bgColor: "#1b6fd1",
+          lightBg: "rgba(27, 111, 209, 0.12)",
         };
       case "GBP":
         return {
-          icon: <CurrencyPoundIcon sx={{ fontSize: isMobile ? "20px" : "28px", color: "#fff" }} />,
-          bgColor: "#6a1b9a",
-          lightBg: "rgba(106, 27, 154, 0.08)",
+          badgeText: "£",
+          badgeSub: "GBP",
+          bgColor: "#7a2eb8",
+          lightBg: "rgba(122, 46, 184, 0.12)",
         };
       default:
         return {
-          icon: null,
-          bgColor: "#999",
-          lightBg: "rgba(153, 153, 153, 0.08)",
+          badgeText: "¤",
+          badgeSub: key,
+          bgColor: "#6f6f6f",
+          lightBg: "rgba(111, 111, 111, 0.1)",
         };
     }
   };
@@ -63,102 +63,120 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, isMobile = fals
   // Mobile layout: horizontal compact cards
   if (isMobile) {
     return (
-      <Box sx={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-        {/* Currency rates - horizontal row */}
+      <Box sx={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", boxSizing: "border-box" }}>
+        {/* Currency rates */}
         {sortedRates.length > 0 && (
           <Box
             sx={{
-              display: "flex",
-              gap: "8px",
-              flexWrap: "wrap",
+              background: "linear-gradient(165deg, #fbf8f0 0%, #f1e8d3 100%)",
+              border: "1px solid #c5a95d",
+              borderRadius: "12px",
+              p: 1.2,
+              width: "100%",
+              boxSizing: "border-box",
             }}
           >
+            <Typography
+              sx={{
+                fontSize: "15px",
+                fontWeight: "900",
+                color: "#8a6a20",
+                textAlign: "center",
+                borderBottom: "1px solid #d8c79a",
+                pb: 0.8,
+                mb: 1,
+                letterSpacing: 0.8,
+              }}
+            >
+              DOVIZ
+            </Typography>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {sortedRates.map((rate, index) => {
               const style = getCurrencyStyle(rate.key);
               return (
                 <Box
                   key={index}
                   sx={{
-                    flex: "1 1 calc(33.33% - 6px)",
-                    minWidth: "90px",
-                    padding: "8px",
-                    backgroundColor: "#fff",
+                    padding: "10px 12px",
+                    backgroundColor: style.lightBg,
                     borderRadius: "10px",
-                    border: `2px solid ${style.bgColor}`,
+                    border: "1px solid #d8c79a",
                     display: "flex",
-                    flexDirection: "column",
                     alignItems: "center",
-                    gap: "4px",
+                    gap: "10px",
                   }}
                 >
                   <Box
                     sx={{
-                      width: "32px",
-                      height: "32px",
+                      width: "36px",
+                      height: "36px",
                       borderRadius: "50%",
-                      backgroundColor: style.bgColor,
+                      background: `linear-gradient(135deg, ${style.bgColor} 0%, #24413f 100%)`,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                     }}
                   >
-                    {style.icon}
+                    <Typography sx={{ fontSize: "16px", fontWeight: "900", color: "#fff", lineHeight: 1 }}>
+                      {style.badgeText}
+                    </Typography>
                   </Box>
-                  <Typography sx={{ fontSize: "13px", fontWeight: "900", color: "#333" }}>
-                    {rate.key}
-                  </Typography>
-                  <Box sx={{ display: "flex", gap: "6px", fontSize: "11px" }}>
-                    <Typography sx={{ fontWeight: "bold", color: "#35C051", fontSize: "11px" }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography sx={{ fontSize: "15px", fontWeight: "900", color: "#5e4a1a", lineHeight: 1.1 }}>
+                      {rate.key}
+                    </Typography>
+                    <Box sx={{ display: "flex", gap: "10px", mt: 0.3 }}>
+                    <Typography sx={{ fontWeight: "bold", color: "#35C051", fontSize: "14px" }}>
                       {formatFxNumber(parseFloat(rate.buy))}
                     </Typography>
-                    <Typography sx={{ fontWeight: "bold", color: "#e74c3c", fontSize: "11px" }}>
+                    <Typography sx={{ fontWeight: "bold", color: "#e74c3c", fontSize: "14px" }}>
                       {formatFxNumber(parseFloat(rate.sell))}
                     </Typography>
+                  </Box>
                   </Box>
                 </Box>
               );
             })}
+            </Box>
           </Box>
         )}
 
-        {/* Silver - compact card */}
-        {silverPrice && parseFloat(silverPrice.buy) > 0 && (
+        {/* Silver */}
+        {silverPrice && (
           <Box
             sx={{
-              padding: "10px 12px",
-              backgroundColor: "#fff",
-              borderRadius: "10px",
-              border: "2px solid #808080",
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
+              background: "linear-gradient(165deg, #f8f8f8 0%, #e9e9e9 100%)",
+              border: "1px solid #b5b5b5",
+              borderRadius: "12px",
+              p: 1.2,
+              width: "100%",
+              boxSizing: "border-box",
             }}
           >
-            <Box
-              sx={{
-                width: "36px",
-                height: "36px",
-                borderRadius: "50%",
-                background: "linear-gradient(135deg, #c0c0c0 0%, #808080 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <DiamondIcon sx={{ fontSize: "20px", color: "#fff" }} />
-            </Box>
-            <Box sx={{ flex: 1 }}>
-              <Typography sx={{ fontSize: "13px", fontWeight: "900", color: "#606060" }}>
-                GÜMÜŞ
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.8, borderBottom: "1px solid #d6d6d6", pb: 0.8, mb: 1 }}>
+              <Box sx={{ width: "24px", height: "24px", borderRadius: "50%", background: "linear-gradient(135deg, #9e9e9e 0%, #666666 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Typography sx={{ fontSize: "11px", fontWeight: "900", color: "#fff", lineHeight: 1 }}>Ag</Typography>
+              </Box>
+              <Typography sx={{ fontSize: "15px", fontWeight: "900", color: "#606060", letterSpacing: 0.6 }}>
+                GUMUS
               </Typography>
-              <Box sx={{ display: "flex", gap: "10px" }}>
-                <Typography sx={{ fontSize: "14px", fontWeight: "900", color: "#35C051" }}>
-                  {formatNumber(parseFloat(silverPrice.buy))}
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: "10px", p: "10px", borderRadius: "10px", backgroundColor: "rgba(128, 128, 128, 0.06)" }}>
+              <Box sx={{ width: "34px", height: "34px", borderRadius: "50%", background: "linear-gradient(135deg, #bdbdbd 0%, #757575 100%)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Typography sx={{ fontSize: "14px", fontWeight: "900", color: "#fff", lineHeight: 1 }}>Ag</Typography>
+              </Box>
+              <Box sx={{ flex: 1 }}>
+                <Typography sx={{ fontSize: "14px", fontWeight: "800", color: "#555", mb: 0.2 }}>
+                  GR / TL
                 </Typography>
-                <Typography sx={{ fontSize: "14px", fontWeight: "900", color: "#e74c3c" }}>
-                  {formatNumber(parseFloat(silverPrice.sell))}
-                </Typography>
+                <Box sx={{ display: "flex", gap: "12px" }}>
+                  <Typography sx={{ fontSize: "16px", fontWeight: "900", color: "#35C051" }}>
+                    {formatNumber(parseFloat(silverPrice.buy))}
+                  </Typography>
+                  <Typography sx={{ fontSize: "16px", fontWeight: "900", color: "#e74c3c" }}>
+                    {formatNumber(parseFloat(silverPrice.sell))}
+                  </Typography>
+                </Box>
               </Box>
             </Box>
           </Box>
@@ -176,27 +194,27 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, isMobile = fals
           sx={{
             width: "100%",
             padding: "12px",
-            backgroundColor: "#fff",
+            background: "linear-gradient(165deg, #fbf8f0 0%, #f1e8d3 100%)",
             borderRadius: "12px",
-            border: "2px solid #d4af37",
+            border: "1px solid #c5a95d",
             display: "flex",
             flexDirection: "column",
             gap: "10px",
-            boxShadow: "0 2px 8px rgba(212, 175, 55, 0.15)",
+            boxShadow: "0 8px 20px rgba(0,0,0,0.14)",
           }}
         >
           <Typography
             sx={{
-              fontSize: "16px",
+              fontSize: "18px",
               fontWeight: "900",
-              color: "#d4af37",
+              color: "#8a6a20",
               textAlign: "center",
-              borderBottom: "2px solid #f0e6c8",
+              borderBottom: "1px solid #d8c79a",
               paddingBottom: "8px",
               letterSpacing: "1px",
             }}
           >
-            💱 DÖVİZ
+            DOVIZ
           </Typography>
           {sortedRates.map((rate, index) => {
             const style = getCurrencyStyle(rate.key);
@@ -208,22 +226,23 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, isMobile = fals
                   alignItems: "center",
                   gap: "12px",
                   padding: "10px 12px",
-                  borderRadius: "10px",
+                  borderRadius: "12px",
                   backgroundColor: style.lightBg,
+                  border: "1px solid rgba(160,140,80,0.18)",
                   transition: "all 0.2s ease",
                   "&:hover": {
                     transform: "translateX(4px)",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
                   },
                 }}
               >
                 {/* Currency icon in colored circle */}
                 <Box
                   sx={{
-                    width: "46px",
-                    height: "46px",
+                    width: "44px",
+                    height: "44px",
                     borderRadius: "50%",
-                    backgroundColor: style.bgColor,
+                    background: `linear-gradient(135deg, ${style.bgColor} 0%, #24413f 100%)`,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -231,16 +250,18 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, isMobile = fals
                     boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
                   }}
                 >
-                  {style.icon}
+                  <Typography sx={{ fontSize: "20px", fontWeight: "900", color: "#fff", lineHeight: 1 }}>
+                    {style.badgeText}
+                  </Typography>
                 </Box>
 
                 {/* Currency info */}
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography
                     sx={{
-                      fontSize: "18px",
+                      fontSize: "22px",
                       fontWeight: "900",
-                      color: "#333",
+                      color: "#3a2f1a",
                       letterSpacing: "0.5px",
                     }}
                   >
@@ -249,7 +270,7 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, isMobile = fals
                   <Box sx={{ display: "flex", gap: "12px", marginTop: "2px" }}>
                     <Typography
                       sx={{
-                        fontSize: "15px",
+                          fontSize: "17px",
                         fontWeight: "bold",
                         color: "#35C051",
                       }}
@@ -259,7 +280,7 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, isMobile = fals
                     {rate.sell !== undefined && (
                       <Typography
                         sx={{
-                          fontSize: "15px",
+                          fontSize: "17px",
                           fontWeight: "bold",
                           color: "#e74c3c",
                         }}
@@ -276,18 +297,18 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, isMobile = fals
       )}
 
       {/* Silver price panel */}
-      {silverPrice && parseFloat(silverPrice.buy) > 0 && (
+      {silverPrice && (
         <Box
           sx={{
             width: "100%",
             padding: "12px",
-            backgroundColor: "#fff",
+            background: "linear-gradient(165deg, #f8f8f8 0%, #e9e9e9 100%)",
             borderRadius: "12px",
-            border: "2px solid #a0a0a0",
+            border: "1px solid #b5b5b5",
             display: "flex",
             flexDirection: "column",
             gap: "10px",
-            boxShadow: "0 2px 8px rgba(128, 128, 128, 0.15)",
+            boxShadow: "0 8px 20px rgba(0,0,0,0.12)",
           }}
         >
           <Box
@@ -296,14 +317,26 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, isMobile = fals
               alignItems: "center",
               justifyContent: "center",
               gap: "8px",
-              borderBottom: "2px solid #e8e8e8",
+              borderBottom: "1px solid #d6d6d6",
               paddingBottom: "8px",
             }}
           >
-            <DiamondIcon sx={{ fontSize: "26px", color: "#808080" }} />
+            <Box
+              sx={{
+                width: "26px",
+                height: "26px",
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #9e9e9e 0%, #666666 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Typography sx={{ fontSize: "13px", fontWeight: "900", color: "#fff", lineHeight: 1 }}>⬡</Typography>
+            </Box>
             <Typography
               sx={{
-                fontSize: "16px",
+                  fontSize: "18px",
                 fontWeight: "900",
                 color: "#606060",
                 letterSpacing: "1px",
@@ -328,7 +361,7 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, isMobile = fals
                 width: "46px",
                 height: "46px",
                 borderRadius: "50%",
-                background: "linear-gradient(135deg, #c0c0c0 0%, #808080 100%)",
+                background: "linear-gradient(135deg, #bdbdbd 0%, #757575 100%)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -336,14 +369,16 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, isMobile = fals
                 boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
               }}
             >
-              <DiamondIcon sx={{ fontSize: "26px", color: "#fff" }} />
+              <Typography sx={{ fontSize: "18px", fontWeight: "900", color: "#fff", lineHeight: 1 }}>
+                ⬡
+              </Typography>
             </Box>
 
             {/* Silver prices */}
             <Box sx={{ flex: 1 }}>
               <Typography
                 sx={{
-                  fontSize: "16px",
+                  fontSize: "18px",
                   fontWeight: "bold",
                   color: "#555",
                   marginBottom: "2px",
@@ -354,7 +389,7 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, isMobile = fals
               <Box sx={{ display: "flex", gap: "12px" }}>
                 <Typography
                   sx={{
-                    fontSize: "19px",
+                    fontSize: "21px",
                     fontWeight: "900",
                     color: "#35C051",
                   }}
@@ -363,7 +398,7 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, isMobile = fals
                 </Typography>
                 <Typography
                   sx={{
-                    fontSize: "19px",
+                    fontSize: "21px",
                     fontWeight: "900",
                     color: "#e74c3c",
                   }}
