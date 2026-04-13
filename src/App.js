@@ -377,61 +377,74 @@ function App() {
           boxSizing: "border-box",
         }}
       >
-          {/* Title and time */}
-          <Box sx={{ marginBottom: "0px", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: { xs: "8px", md: "24px" }, flexWrap: "wrap", gap: "10px" }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          {/* Header */}
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: { xs: "8px", md: "16px" }, flexWrap: "wrap", gap: "8px" }}>
+            {/* Left: Logo + Dernek adı */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1.5, md: 2 } }}>
               <Box
                 component="img"
-                src="/siverek-emblem.svg"
-                alt="Siverek Kuyumcular Odası Amblem"
+                src={`${process.env.PUBLIC_URL}/siverek-emblem.svg`}
+                alt="Siverek Kuyumcular Derneği"
                 sx={{
-                  width: { xs: 44, sm: 52, md: 58 },
-                  height: { xs: 44, sm: 52, md: 58 },
+                  width: { xs: 48, sm: 56, md: 64 },
+                  height: { xs: 48, sm: 56, md: 64 },
                   borderRadius: "50%",
                   boxShadow: "0 4px 14px rgba(0,0,0,0.35)",
                 }}
               />
               <Box>
-              <Typography
-                sx={{
-                  color: "#d4af37",
-                  fontWeight: "900",
-                  fontSize: { xs: "16px", sm: "20px", md: "24px" },
-                }}
-              >
-                {admin?.shopName || "SIVEREK KUYUMCULAR ODASI"}
-              </Typography>
-              <Typography
-                sx={{
-                  color: "#888",
-                  fontWeight: "600",
-                  fontSize: { xs: "11px", sm: "12px", md: "13px" },
-                  mt: 0.25,
-                }}
-              >
-                SIVEREK KUYUMCULAR ODASI FIYAT EKRANI
-              </Typography>
+                {admin?.shopName && (
+                  <Typography
+                    sx={{
+                      color: "#e6c76a",
+                      fontWeight: "700",
+                      fontSize: { xs: "11px", sm: "13px", md: "15px" },
+                      lineHeight: 1.2,
+                      letterSpacing: "0.3px",
+                    }}
+                  >
+                    {admin.shopName}
+                  </Typography>
+                )}
+                <Typography
+                  sx={{
+                    color: "#d4af37",
+                    fontWeight: "900",
+                    fontSize: { xs: "15px", sm: "19px", md: "24px" },
+                    lineHeight: 1.2,
+                    letterSpacing: "0.5px",
+                    mt: admin?.shopName ? 0.3 : 0,
+                  }}
+                >
+                  SİVEREK KUYUMCULAR DERNEĞİ
+                </Typography>
+              </Box>
             </Box>
-            </Box>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
-              <Typography sx={{ color: "#999", fontSize: { xs: "12px", sm: "14px", md: "16px" }, fontWeight: "bold" }}>
+
+            {/* Right: Tarih/saat + Çıkış */}
+            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 0.5 }}>
+              <Typography sx={{ color: "#bbb", fontSize: { xs: "13px", sm: "15px", md: "17px" }, fontWeight: "bold", whiteSpace: "nowrap" }}>
                 {currentTime}
               </Typography>
-              <Button
-                size="small"
-                onClick={handleLogout}
-                sx={{
-                  textTransform: "none",
-                  color: "#e6c76a",
-                  minWidth: "auto",
-                  fontSize: { xs: "11px", sm: "12px" },
-                  border: "1px solid #7a6320",
-                  borderRadius: "8px",
-                  "&:hover": { borderColor: "#d4af37", backgroundColor: "#1b1b1b" },
-                }}
-              >
-                Çıkış
-              </Button>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Button
+                  size="small"
+                  onClick={handleLogout}
+                  sx={{
+                    textTransform: "none",
+                    color: "#e6c76a",
+                    minWidth: "auto",
+                    fontSize: { xs: "10px", sm: "11px" },
+                    border: "1px solid #7a6320",
+                    borderRadius: "8px",
+                    px: 1.5,
+                    py: 0.25,
+                    "&:hover": { borderColor: "#d4af37", backgroundColor: "#1b1b1b" },
+                  }}
+                >
+                  Çıkış
+                </Button>
+              </Box>
             </Box>
           </Box>
 
@@ -471,7 +484,7 @@ function App() {
                 background: "linear-gradient(160deg, rgba(247,243,232,0.96) 0%, rgba(236,229,210,0.96) 100%)",
                 border: "1px solid #b79a4c",
                 borderRadius: "16px",
-                padding: { xs: 1.25, md: 1.75 },
+                padding: { xs: "12px", md: 1.75 },
                 boxShadow: "0 10px 28px rgba(0,0,0,0.22)",
               }}
             >
@@ -496,35 +509,7 @@ function App() {
                         gap: 1,
                       }}
                     >
-                      {(groupIndex === 0 && onsPrice
-                        ? [{ key: "__ons__", isOns: true }, ...group]
-                        : group
-                      ).map((item) => {
-                        if (item.isOns) {
-                          return (
-                            <Box
-                              key="ons-card"
-                              sx={{
-                                borderRadius: "12px",
-                                border: "1px solid #b79a4c",
-                                background: "linear-gradient(140deg, rgba(255,244,206,0.9) 0%, rgba(247,232,180,0.82) 100%)",
-                                p: 1.2,
-                              }}
-                            >
-                              <Typography sx={{ color: "#7f6120", fontWeight: 900, fontSize: { xs: "17px", md: "18px" } }}>
-                                ONS ALTIN (USD)
-                              </Typography>
-                              <Box sx={{ display: "flex", justifyContent: "space-between", mt: 0.6 }}>
-                                <Typography sx={{ color: "#7be08f", fontWeight: 900, fontSize: { xs: "20px", md: "22px" } }}>
-                                  {formatNumber(parseFloat(onsPrice.buy) || 0)}
-                                </Typography>
-                                <Typography sx={{ color: "#ff8d7a", fontWeight: 900, fontSize: { xs: "20px", md: "22px" } }}>
-                                  {formatNumber(parseFloat(onsPrice.sell) || 0)}
-                                </Typography>
-                              </Box>
-                            </Box>
-                          );
-                        }
+                      {group.map((item) => {
                         const originalIndex = hesaplananFiyat.findIndex((x) => x?.key === item.key);
                         const currentPrice = calculatedPrices[originalIndex]?.buy || item.buy;
                         return (
@@ -562,11 +547,12 @@ function App() {
               </Box>
             </Box>
 
-            <Box sx={{ width: "100%" }}>
+            <Box sx={{ width: "100%", boxSizing: "border-box", overflow: "hidden" }}>
               <CurrencyBar
                 currencyRates={currencyRates}
                 formatNumber={formatNumber}
                 silverPrice={silverPrice}
+                onsPrice={onsPrice}
                 isMobile={false}
               />
             </Box>

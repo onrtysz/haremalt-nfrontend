@@ -79,7 +79,7 @@ const AdminLogin = () => {
               <LockOutlinedIcon sx={{ color: 'white', fontSize: 28 }} />
             </Box>
             <Typography variant="h5" fontWeight="bold" color="#f0d98b" align="center">
-              Siverek Kuyumcular Odası
+              Siverek Kuyumcular Derneği
             </Typography>
             <Typography variant="body2" sx={{ mt: 1, color: '#b9a978' }} align="center">
               Canlı altın ve döviz fiyatlarını görüntülemek için giriş yapın

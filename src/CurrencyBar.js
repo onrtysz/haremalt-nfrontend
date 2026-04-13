@@ -2,7 +2,7 @@ import React from "react";
 import { Box, Typography } from "@mui/material";
 
 // Currency bar component that displays latest currency rates
-function CurrencyBar({ currencyRates, formatNumber, silverPrice, isMobile = false }) {
+function CurrencyBar({ currencyRates, formatNumber, silverPrice, onsPrice, isMobile = false }) {
   // Ensure fixed order for main currencies: USD, EUR, GBP, then others
   const order = ["USD", "EUR", "GBP"];
   const sortedRates = currencyRates && currencyRates.length > 0
@@ -64,11 +64,11 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, isMobile = fals
   if (isMobile) {
     return (
       <Box sx={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", boxSizing: "border-box" }}>
-        {/* Currency rates */}
-        {sortedRates.length > 0 && (
+        {/* ONS Gold */}
+        {onsPrice && (
           <Box
             sx={{
-              background: "linear-gradient(165deg, #fbf8f0 0%, #f1e8d3 100%)",
+              background: "linear-gradient(165deg, #fdf6e3 0%, #f0e0b0 100%)",
               border: "1px solid #c5a95d",
               borderRadius: "12px",
               p: 1.2,
@@ -88,55 +88,23 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, isMobile = fals
                 letterSpacing: 0.8,
               }}
             >
-              DOVIZ
+              ONS ALTIN
             </Typography>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {sortedRates.map((rate, index) => {
-              const style = getCurrencyStyle(rate.key);
-              return (
-                <Box
-                  key={index}
-                  sx={{
-                    padding: "10px 12px",
-                    backgroundColor: style.lightBg,
-                    borderRadius: "10px",
-                    border: "1px solid #d8c79a",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: "36px",
-                      height: "36px",
-                      borderRadius: "50%",
-                      background: `linear-gradient(135deg, ${style.bgColor} 0%, #24413f 100%)`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Typography sx={{ fontSize: "16px", fontWeight: "900", color: "#fff", lineHeight: 1 }}>
-                      {style.badgeText}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography sx={{ fontSize: "15px", fontWeight: "900", color: "#5e4a1a", lineHeight: 1.1 }}>
-                      {rate.key}
-                    </Typography>
-                    <Box sx={{ display: "flex", gap: "10px", mt: 0.3 }}>
-                    <Typography sx={{ fontWeight: "bold", color: "#35C051", fontSize: "14px" }}>
-                      {formatFxNumber(parseFloat(rate.buy))}
-                    </Typography>
-                    <Typography sx={{ fontWeight: "bold", color: "#e74c3c", fontSize: "14px" }}>
-                      {formatFxNumber(parseFloat(rate.sell))}
-                    </Typography>
-                  </Box>
-                  </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: "10px", p: "10px", borderRadius: "10px", backgroundColor: "rgba(212, 175, 55, 0.08)" }}>
+              <Box sx={{ width: "36px", height: "36px", borderRadius: "50%", background: "linear-gradient(135deg, #d4af37 0%, #8a6a20 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Typography sx={{ fontSize: "16px", fontWeight: "900", color: "#fff", lineHeight: 1 }}>◆</Typography>
+              </Box>
+              <Box sx={{ flex: 1 }}>
+                <Typography sx={{ fontSize: "14px", fontWeight: "800", color: "#5e4a1a", mb: 0.2 }}>USD / OZ</Typography>
+                <Box sx={{ display: "flex", gap: "10px" }}>
+                  <Typography sx={{ fontSize: "16px", fontWeight: "900", color: "#35C051" }}>
+                    {formatNumber(parseFloat(onsPrice.buy))}
+                  </Typography>
+                  <Typography sx={{ fontSize: "16px", fontWeight: "900", color: "#e74c3c" }}>
+                    {formatNumber(parseFloat(onsPrice.sell))}
+                  </Typography>
                 </Box>
-              );
-            })}
+              </Box>
             </Box>
           </Box>
         )}
@@ -181,26 +149,104 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, isMobile = fals
             </Box>
           </Box>
         )}
+
+        {/* Currency rates */}
+        {sortedRates.length > 0 && (
+          <Box
+            sx={{
+              background: "linear-gradient(165deg, #fbf8f0 0%, #f1e8d3 100%)",
+              border: "1px solid #c5a95d",
+              borderRadius: "12px",
+              p: 1.2,
+              width: "100%",
+              boxSizing: "border-box",
+            }}
+          >
+            <Typography
+              sx={{
+                fontSize: "15px",
+                fontWeight: "900",
+                color: "#8a6a20",
+                textAlign: "center",
+                borderBottom: "1px solid #d8c79a",
+                pb: 0.8,
+                mb: 1,
+                letterSpacing: 0.8,
+              }}
+            >
+              DÖVİZ
+            </Typography>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {sortedRates.map((rate, index) => {
+                const style = getCurrencyStyle(rate.key);
+                return (
+                  <Box
+                    key={index}
+                    sx={{
+                      padding: "10px 12px",
+                      backgroundColor: style.lightBg,
+                      borderRadius: "10px",
+                      border: "1px solid #d8c79a",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: "36px",
+                        height: "36px",
+                        borderRadius: "50%",
+                        background: `linear-gradient(135deg, ${style.bgColor} 0%, #24413f 100%)`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Typography sx={{ fontSize: "16px", fontWeight: "900", color: "#fff", lineHeight: 1 }}>
+                        {style.badgeText}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography sx={{ fontSize: "15px", fontWeight: "900", color: "#5e4a1a", lineHeight: 1.1 }}>
+                        {rate.key}
+                      </Typography>
+                      <Box sx={{ display: "flex", gap: "10px", mt: 0.3 }}>
+                        <Typography sx={{ fontWeight: "bold", color: "#35C051", fontSize: "14px" }}>
+                          {formatFxNumber(parseFloat(rate.buy))}
+                        </Typography>
+                        <Typography sx={{ fontWeight: "bold", color: "#e74c3c", fontSize: "14px" }}>
+                          {formatFxNumber(parseFloat(rate.sell))}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                );
+              })}
+            </Box>
+          </Box>
+        )}
       </Box>
     );
   }
 
   // Desktop layout: vertical panel
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-      {/* Currency rates panel */}
-      {sortedRates.length > 0 && (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", boxSizing: "border-box" }}>
+      {/* ONS Gold panel */}
+      {onsPrice && (
         <Box
           sx={{
             width: "100%",
+            boxSizing: "border-box",
             padding: "12px",
-            background: "linear-gradient(165deg, #fbf8f0 0%, #f1e8d3 100%)",
+            background: "linear-gradient(165deg, #fdf6e3 0%, #f0e0b0 100%)",
             borderRadius: "12px",
             border: "1px solid #c5a95d",
             display: "flex",
             flexDirection: "column",
             gap: "10px",
-            boxShadow: "0 8px 20px rgba(0,0,0,0.14)",
+            boxShadow: "0 8px 20px rgba(0,0,0,0.12)",
           }}
         >
           <Typography
@@ -214,85 +260,48 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, isMobile = fals
               letterSpacing: "1px",
             }}
           >
-            DOVIZ
+            ONS ALTIN
           </Typography>
-          {sortedRates.map((rate, index) => {
-            const style = getCurrencyStyle(rate.key);
-            return (
-              <Box
-                key={index}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  padding: "10px 12px",
-                  borderRadius: "12px",
-                  backgroundColor: style.lightBg,
-                  border: "1px solid rgba(160,140,80,0.18)",
-                  transition: "all 0.2s ease",
-                  "&:hover": {
-                    transform: "translateX(4px)",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                  },
-                }}
-              >
-                {/* Currency icon in colored circle */}
-                <Box
-                  sx={{
-                    width: "44px",
-                    height: "44px",
-                    borderRadius: "50%",
-                    background: `linear-gradient(135deg, ${style.bgColor} 0%, #24413f 100%)`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                    boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-                  }}
-                >
-                  <Typography sx={{ fontSize: "20px", fontWeight: "900", color: "#fff", lineHeight: 1 }}>
-                    {style.badgeText}
-                  </Typography>
-                </Box>
-
-                {/* Currency info */}
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography
-                    sx={{
-                      fontSize: "22px",
-                      fontWeight: "900",
-                      color: "#3a2f1a",
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    {rate.key}
-                  </Typography>
-                  <Box sx={{ display: "flex", gap: "12px", marginTop: "2px" }}>
-                    <Typography
-                      sx={{
-                          fontSize: "17px",
-                        fontWeight: "bold",
-                        color: "#35C051",
-                      }}
-                    >
-                      {formatFxNumber(parseFloat(rate.buy))}
-                    </Typography>
-                    {rate.sell !== undefined && (
-                      <Typography
-                        sx={{
-                          fontSize: "17px",
-                          fontWeight: "bold",
-                          color: "#e74c3c",
-                        }}
-                      >
-                        {formatFxNumber(parseFloat(rate.sell))}
-                      </Typography>
-                    )}
-                  </Box>
-                </Box>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              padding: "10px 12px",
+              borderRadius: "12px",
+              backgroundColor: "rgba(212, 175, 55, 0.08)",
+              border: "1px solid rgba(160,140,80,0.18)",
+            }}
+          >
+            <Box
+              sx={{
+                width: "44px",
+                height: "44px",
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #d4af37 0%, #8a6a20 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+              }}
+            >
+              <Typography sx={{ fontSize: "20px", fontWeight: "900", color: "#fff", lineHeight: 1 }}>◆</Typography>
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography sx={{ fontSize: "22px", fontWeight: "900", color: "#3a2f1a", letterSpacing: "0.5px" }}>
+                USD / OZ
+              </Typography>
+              <Box sx={{ display: "flex", gap: "12px", marginTop: "2px" }}>
+                <Typography sx={{ fontSize: "17px", fontWeight: "bold", color: "#35C051" }}>
+                  {formatNumber(parseFloat(onsPrice.buy))}
+                </Typography>
+                <Typography sx={{ fontSize: "17px", fontWeight: "bold", color: "#e74c3c" }}>
+                  {formatNumber(parseFloat(onsPrice.sell))}
+                </Typography>
               </Box>
-            );
-          })}
+            </Box>
+          </Box>
         </Box>
       )}
 
@@ -301,6 +310,7 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, isMobile = fals
         <Box
           sx={{
             width: "100%",
+            boxSizing: "border-box",
             padding: "12px",
             background: "linear-gradient(165deg, #f8f8f8 0%, #e9e9e9 100%)",
             borderRadius: "12px",
@@ -408,6 +418,100 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, isMobile = fals
               </Box>
             </Box>
           </Box>
+        </Box>
+      )}
+
+      {/* Currency rates panel */}
+      {sortedRates.length > 0 && (
+        <Box
+          sx={{
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "12px",
+            background: "linear-gradient(165deg, #fbf8f0 0%, #f1e8d3 100%)",
+            borderRadius: "12px",
+            border: "1px solid #c5a95d",
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
+            boxShadow: "0 8px 20px rgba(0,0,0,0.14)",
+          }}
+        >
+          <Typography
+            sx={{
+              fontSize: "18px",
+              fontWeight: "900",
+              color: "#8a6a20",
+              textAlign: "center",
+              borderBottom: "1px solid #d8c79a",
+              paddingBottom: "8px",
+              letterSpacing: "1px",
+            }}
+          >
+            DÖVİZ
+          </Typography>
+          {sortedRates.map((rate, index) => {
+            const style = getCurrencyStyle(rate.key);
+            return (
+              <Box
+                key={index}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  padding: "10px 12px",
+                  borderRadius: "12px",
+                  backgroundColor: style.lightBg,
+                  border: "1px solid rgba(160,140,80,0.18)",
+                  transition: "all 0.2s ease",
+                  "&:hover": {
+                    transform: "translateX(4px)",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                  },
+                }}
+              >
+                <Box
+                  sx={{
+                    width: "44px",
+                    height: "44px",
+                    borderRadius: "50%",
+                    background: `linear-gradient(135deg, ${style.bgColor} 0%, #24413f 100%)`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+                  }}
+                >
+                  <Typography sx={{ fontSize: "20px", fontWeight: "900", color: "#fff", lineHeight: 1 }}>
+                    {style.badgeText}
+                  </Typography>
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography
+                    sx={{
+                      fontSize: "22px",
+                      fontWeight: "900",
+                      color: "#3a2f1a",
+                      letterSpacing: "0.5px",
+                    }}
+                  >
+                    {rate.key}
+                  </Typography>
+                  <Box sx={{ display: "flex", gap: "12px", marginTop: "2px" }}>
+                    <Typography sx={{ fontSize: "17px", fontWeight: "bold", color: "#35C051" }}>
+                      {formatFxNumber(parseFloat(rate.buy))}
+                    </Typography>
+                    {rate.sell !== undefined && (
+                      <Typography sx={{ fontSize: "17px", fontWeight: "bold", color: "#e74c3c" }}>
+                        {formatFxNumber(parseFloat(rate.sell))}
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              </Box>
+            );
+          })}
         </Box>
       )}
     </Box>
