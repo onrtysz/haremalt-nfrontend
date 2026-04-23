@@ -71,10 +71,11 @@ function App() {
   });
   const [currentTime, setCurrentTime] = useState("");
 
-  const formatNumber = (number) => {
+  const formatNumber = (number, { decimals } = {}) => {
+    const fractionDigits = decimals ?? 0;
     return new Intl.NumberFormat("tr-TR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
     }).format(number);
   };
 
@@ -535,10 +536,10 @@ function App() {
                             </Typography>
                             <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                               <Typography sx={{ color: "#7be08f", fontWeight: 900, fontSize: { xs: "20px", md: "22px" } }}>
-                                {formatNumber(currentPrice)}
+                                {formatNumber(currentPrice, { decimals: item.key === "HAS ALTIN 1000" ? 2 : 0 })}
                               </Typography>
                               <Typography sx={{ color: "#ff8d7a", fontWeight: 900, fontSize: { xs: "20px", md: "22px" } }}>
-                                {formatNumber(calculatedPrices[originalIndex]?.sell || item.sell)}
+                                {formatNumber(calculatedPrices[originalIndex]?.sell || item.sell, { decimals: item.key === "HAS ALTIN 1000" ? 2 : 0 })}
                               </Typography>
                             </Box>
                           </Box>

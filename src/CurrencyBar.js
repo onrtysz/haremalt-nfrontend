@@ -98,10 +98,10 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, onsPrice, isMob
                 <Typography sx={{ fontSize: "14px", fontWeight: "800", color: "#5e4a1a", mb: 0.2 }}>USD / OZ</Typography>
                 <Box sx={{ display: "flex", gap: "10px" }}>
                   <Typography sx={{ fontSize: "16px", fontWeight: "900", color: "#35C051" }}>
-                    {formatNumber(parseFloat(onsPrice.buy))}
+                    {formatNumber(parseFloat(onsPrice.buy), { decimals: 2 })}
                   </Typography>
                   <Typography sx={{ fontSize: "16px", fontWeight: "900", color: "#e74c3c" }}>
-                    {formatNumber(parseFloat(onsPrice.sell))}
+                    {formatNumber(parseFloat(onsPrice.sell), { decimals: 2 })}
                   </Typography>
                 </Box>
               </Box>
@@ -139,10 +139,10 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, onsPrice, isMob
                 </Typography>
                 <Box sx={{ display: "flex", gap: "12px" }}>
                   <Typography sx={{ fontSize: "16px", fontWeight: "900", color: "#35C051" }}>
-                    {formatNumber(parseFloat(silverPrice.buy))}
+                    {formatNumber(parseFloat(silverPrice.buy), { decimals: 2 })}
                   </Typography>
                   <Typography sx={{ fontSize: "16px", fontWeight: "900", color: "#e74c3c" }}>
-                    {formatNumber(parseFloat(silverPrice.sell))}
+                    {formatNumber(parseFloat(silverPrice.sell), { decimals: 2 })}
                   </Typography>
                 </Box>
               </Box>
@@ -294,10 +294,10 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, onsPrice, isMob
               </Typography>
               <Box sx={{ display: "flex", gap: "12px", marginTop: "2px" }}>
                 <Typography sx={{ fontSize: "17px", fontWeight: "bold", color: "#35C051" }}>
-                  {formatNumber(parseFloat(onsPrice.buy))}
+                  {formatNumber(parseFloat(onsPrice.buy), { decimals: 2 })}
                 </Typography>
                 <Typography sx={{ fontSize: "17px", fontWeight: "bold", color: "#e74c3c" }}>
-                  {formatNumber(parseFloat(onsPrice.sell))}
+                  {formatNumber(parseFloat(onsPrice.sell), { decimals: 2 })}
                 </Typography>
               </Box>
             </Box>
@@ -404,7 +404,7 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, onsPrice, isMob
                     color: "#35C051",
                   }}
                 >
-                  {formatNumber(parseFloat(silverPrice.buy))}
+                  {formatNumber(parseFloat(silverPrice.buy), { decimals: 2 })}
                 </Typography>
                 <Typography
                   sx={{
@@ -413,7 +413,7 @@ function CurrencyBar({ currencyRates, formatNumber, silverPrice, onsPrice, isMob
                     color: "#e74c3c",
                   }}
                 >
-                  {formatNumber(parseFloat(silverPrice.sell))}
+                  {formatNumber(parseFloat(silverPrice.sell), { decimals: 2 })}
                 </Typography>
               </Box>
             </Box>
