@@ -40,12 +40,8 @@ const PRODUCT_NAMES = [
   'KORDON',
 ];
 
-// Rounding functions
-const roundTo5 = (num) => Math.ceil(num / 5) * 5;
-const roundTo10 = (num) => Math.ceil(num / 10) * 10;
-const roundTo25 = (num) => Math.ceil(num / 25) * 25;
-const roundTo50 = (num) => Math.ceil(num / 50) * 50;
-const roundTo100 = (num) => Math.ceil(num / 100) * 100;
+// Round all prices to nearest upper 1 TL
+const roundTo1 = (num) => Math.ceil(num);
 
 const DEFAULT_FIXED_COSTS = [1, 0.995, 0.916, 0.913, 6.38, 3.265, 1.6325, 6.44, 3.265, 1.5975, 0.919, 0.921, 0.920];
 
@@ -132,27 +128,7 @@ const AdminPanel = () => {
     const rawPrice = (basePrice + labor) * fixed;
     let result;
     
-    if (index === 0) {
-      // HAS ALTIN 1000 - Gösterge fiyat, yuvarlanmaz
-      result = rawPrice;
-    } else if (index === 1 || index === 2 || index === 3) {
-      // HAS ALTIN 995, GRAM ALTIN 916, GRAM ALTIN 913 - 5'in katlarına yuvarlanır
-      result = roundTo5(rawPrice);
-    } else if (index === 4 || index === 7) {
-      // ZİYNET ESKİ ve YENİ - 100'ün katlarına yuvarlanır
-      result = roundTo100(rawPrice);
-    } else if (index === 5 || index === 8) {
-      // YARIM ESKİ ve YENİ - 50'nin katlarına yuvarlanır
-      result = roundTo50(rawPrice);
-    } else if (index === 6 || index === 9) {
-      // ÇEYREK ESKİ ve YENİ - 25'in katlarına yuvarlanır
-      result = roundTo25(rawPrice);
-    } else if (index === 10 || index === 11 || index === 12) {
-      // BİLEZİK BURMA, BİLEZİK AYNALI, KORDON - 10'un katlarına yuvarlanır
-      result = roundTo10(rawPrice);
-    } else {
-      result = roundTo25(rawPrice);
-    }
+    result = roundTo1(rawPrice);
     
     return result.toLocaleString('tr-TR');
   };
@@ -296,7 +272,7 @@ const AdminPanel = () => {
               </Box>
             </Box>
             <Typography variant="body2" sx={{ mb: 3, color: '#6f6448' }}>
-              Bu değerler tüm kullanıcılar için anlık olarak güncellenecektir. Fiyatlar 25'in katlarına yuvarlanır.
+              Bu değerler tüm kullanıcılar için anlık olarak güncellenecektir. Fiyatlar 1 TL'ye yuvarlanır.
               {goldPrice.buy === 0 && " (Canlı fiyat bağlantısı yok - test için manuel fiyat girin)"}
             </Typography>
 
