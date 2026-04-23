@@ -19,9 +19,7 @@ root.render(
           <Route
             path="/"
             element={
-              <ProtectedRoute>
-                <App />
-              </ProtectedRoute>
+              <App />
             }
           />
           <Route

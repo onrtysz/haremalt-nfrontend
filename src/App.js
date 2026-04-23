@@ -119,7 +119,7 @@ function App() {
   const [calculatedPrices, setCalculatedPrices] = useState([]);
   
   const navigate = useNavigate();
-  const { isAdmin, logout, admin } = useAuth();
+  const { isAdmin, isAuthenticated, logout, admin } = useAuth();
 
   const handleLogout = () => {
     logout();
@@ -320,7 +320,11 @@ function App() {
   }, [goldPrice, handleCalculatePrices, buyLaborCosts, sellLaborCosts, buyFixedCosts, sellFixedCosts, settingsLoaded]);
 
   const goToAdminPanel = () => {
-    navigate("/admin/panel");
+    if (isAuthenticated) {
+      navigate("/admin/panel");
+      return;
+    }
+    navigate("/login");
   };
 
   const subtitles = {
@@ -379,12 +383,12 @@ function App() {
       >
           {/* Header */}
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: { xs: "8px", md: "16px" }, flexWrap: "wrap", gap: "8px" }}>
-            {/* Left: Logo + Dernek adı */}
+            {/* Left: Logo */}
             <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1.5, md: 2 } }}>
               <Box
                 component="img"
                 src={`${process.env.PUBLIC_URL}/siverek-emblem.svg`}
-                alt="Siverek Kuyumcular Derneği"
+                alt="Altin Logo"
                 sx={{
                   width: { xs: 48, sm: 56, md: 64 },
                   height: { xs: 48, sm: 56, md: 64 },
@@ -393,6 +397,17 @@ function App() {
                 }}
               />
               <Box>
+                <Typography
+                  sx={{
+                    color: "#d4af37",
+                    fontWeight: "900",
+                    fontSize: { xs: "15px", sm: "19px", md: "24px" },
+                    lineHeight: 1.2,
+                    letterSpacing: "0.5px",
+                  }}
+                >
+                  ALTIN FIYATLARI
+                </Typography>
                 {admin?.shopName && (
                   <Typography
                     sx={{
@@ -406,18 +421,6 @@ function App() {
                     {admin.shopName}
                   </Typography>
                 )}
-                <Typography
-                  sx={{
-                    color: "#d4af37",
-                    fontWeight: "900",
-                    fontSize: { xs: "15px", sm: "19px", md: "24px" },
-                    lineHeight: 1.2,
-                    letterSpacing: "0.5px",
-                    mt: admin?.shopName ? 0.3 : 0,
-                  }}
-                >
-                  SİVEREK KUYUMCULAR DERNEĞİ
-                </Typography>
               </Box>
             </Box>
 
@@ -426,49 +429,49 @@ function App() {
               <Typography sx={{ color: "#bbb", fontSize: { xs: "13px", sm: "15px", md: "17px" }, fontWeight: "bold", whiteSpace: "nowrap" }}>
                 {currentTime}
               </Typography>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Button
-                  size="small"
-                  onClick={handleLogout}
-                  sx={{
-                    textTransform: "none",
-                    color: "#e6c76a",
-                    minWidth: "auto",
-                    fontSize: { xs: "10px", sm: "11px" },
-                    border: "1px solid #7a6320",
-                    borderRadius: "8px",
-                    px: 1.5,
-                    py: 0.25,
-                    "&:hover": { borderColor: "#d4af37", backgroundColor: "#1b1b1b" },
-                  }}
-                >
-                  Çıkış
-                </Button>
-              </Box>
+              {isAuthenticated && (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Button
+                    size="small"
+                    onClick={handleLogout}
+                    sx={{
+                      textTransform: "none",
+                      color: "#e6c76a",
+                      minWidth: "auto",
+                      fontSize: { xs: "10px", sm: "11px" },
+                      border: "1px solid #7a6320",
+                      borderRadius: "8px",
+                      px: 1.5,
+                      py: 0.25,
+                      "&:hover": { borderColor: "#d4af37", backgroundColor: "#1b1b1b" },
+                    }}
+                  >
+                    Çıkış
+                  </Button>
+                </Box>
+              )}
             </Box>
           </Box>
 
-          {/* Admin-only: price & labor settings */}
-          {isAdmin && (
-            <Box sx={{ marginBottom: "8px", display: "flex", gap: "6px", opacity: 0.6, "&:hover": { opacity: 1 }, justifyContent: "flex-end" }}>
-              <IconButton
-                onClick={goToAdminPanel}
-                sx={{
+          {/* Price & labor settings */}
+          <Box sx={{ marginBottom: "8px", display: "flex", gap: "6px", opacity: 0.6, "&:hover": { opacity: 1 }, justifyContent: "flex-end" }}>
+            <IconButton
+              onClick={goToAdminPanel}
+              sx={{
+                color: "#d4af37",
+                fontSize: "20px",
+                transition: "all 0.3s",
+                padding: "4px",
+                "&:hover": {
+                  transform: "scale(1.2)",
                   color: "#d4af37",
-                  fontSize: "20px",
-                  transition: "all 0.3s",
-                  padding: "4px",
-                  "&:hover": {
-                    transform: "scale(1.2)",
-                    color: "#d4af37",
-                  },
-                }}
-                title="Fiyat ve işçilik ayarları"
-              >
-                <SettingsIcon sx={{ fontSize: "20px" }} />
-              </IconButton>
-            </Box>
-          )}
+                },
+              }}
+              title={isAdmin ? "Fiyat ve işçilik ayarları" : "Ayarlar için giriş yapın"}
+            >
+              <SettingsIcon sx={{ fontSize: "20px" }} />
+            </IconButton>
+          </Box>
 
           {/* New layout: product cards + side market panel */}
           <Box
