@@ -535,10 +535,10 @@ function App() {
                               {subtitles[item.key] || item.key}
                             </Typography>
                             <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-                              <Typography sx={{ color: "#7be08f", fontWeight: 900, fontSize: { xs: "20px", md: "22px" } }}>
+                              <Typography sx={{ color: "#00c853", fontWeight: 900, fontSize: { xs: "20px", md: "22px" } }}>
                                 {formatNumber(currentPrice, { decimals: item.key === "HAS ALTIN 1000" ? 2 : 0 })}
                               </Typography>
-                              <Typography sx={{ color: "#ff8d7a", fontWeight: 900, fontSize: { xs: "20px", md: "22px" } }}>
+                              <Typography sx={{ color: "#ff1744", fontWeight: 900, fontSize: { xs: "20px", md: "22px" } }}>
                                 {formatNumber(calculatedPrices[originalIndex]?.sell || item.sell, { decimals: item.key === "HAS ALTIN 1000" ? 2 : 0 })}
                               </Typography>
                             </Box>
