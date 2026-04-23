@@ -400,28 +400,30 @@ function App() {
               <Box>
                 <Typography
                   sx={{
-                    color: "#d4af37",
+                    color: "#f5d76e",
                     fontWeight: "900",
-                    fontSize: { xs: "15px", sm: "19px", md: "24px" },
-                    lineHeight: 1.2,
-                    letterSpacing: "0.5px",
+                    fontSize: { xs: "18px", sm: "24px", md: "30px" },
+                    lineHeight: 1.1,
+                    letterSpacing: "2px",
+                    textTransform: "uppercase",
+                    textShadow: "0 2px 8px rgba(212, 175, 55, 0.4)",
                   }}
                 >
-                  ALTIN FIYATLARI
+                  Fatih Kuyumculuk
                 </Typography>
-                {admin?.shopName && (
-                  <Typography
-                    sx={{
-                      color: "#e6c76a",
-                      fontWeight: "700",
-                      fontSize: { xs: "11px", sm: "13px", md: "15px" },
-                      lineHeight: 1.2,
-                      letterSpacing: "0.3px",
-                    }}
-                  >
-                    {admin.shopName}
-                  </Typography>
-                )}
+                <Typography
+                  sx={{
+                    color: "#c9b87a",
+                    fontWeight: "700",
+                    fontSize: { xs: "11px", sm: "14px", md: "17px" },
+                    lineHeight: 1.2,
+                    letterSpacing: "3px",
+                    textTransform: "uppercase",
+                    mt: 0.3,
+                  }}
+                >
+                  İFA Kıymetli Madenler
+                </Typography>
               </Box>
             </Box>
 
@@ -493,7 +495,7 @@ function App() {
               }}
             >
               <Typography sx={{ color: "#8f6f20", fontWeight: 900, letterSpacing: 0.6, mb: 1.2, fontSize: { xs: "17px", md: "19px" } }}>
-                GUNCEL URUN FIYATLARI
+                GUNCEL ALTIN FIYATLARI
               </Typography>
 
               <Box>
