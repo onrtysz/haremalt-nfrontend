@@ -45,7 +45,15 @@ export const AuthProvider = ({ children }) => {
         }
       }
     } catch (error) {
-      localStorage.removeItem('adminToken');
+      if (error.response?.status === 401) {
+        localStorage.removeItem('adminToken');
+      } else {
+        // Network error - keep token, try to use cached session
+        const cachedTenant = localStorage.getItem('tenantId');
+        if (cachedTenant) {
+          setIsAuthenticated(true);
+        }
+      }
     } finally {
       setLoading(false);
     }
