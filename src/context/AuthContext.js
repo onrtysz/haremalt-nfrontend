@@ -40,6 +40,9 @@ export const AuthProvider = ({ children }) => {
       if (response.success) {
         setIsAuthenticated(true);
         setAdmin(response.admin);
+        if (response.admin?.tenantId) {
+          localStorage.setItem('tenantId', response.admin.tenantId);
+        }
       }
     } catch (error) {
       localStorage.removeItem('adminToken');
@@ -52,6 +55,9 @@ export const AuthProvider = ({ children }) => {
     const response = await authService.login(username, password);
     if (response.success) {
       localStorage.setItem('adminToken', response.token);
+      if (response.admin?.tenantId) {
+        localStorage.setItem('tenantId', response.admin.tenantId);
+      }
       setIsAuthenticated(true);
       setAdmin(response.admin);
     }
@@ -60,6 +66,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('adminToken');
+    localStorage.removeItem('tenantId');
     setIsAuthenticated(false);
     setAdmin(null);
   };

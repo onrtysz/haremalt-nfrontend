@@ -8,13 +8,12 @@ const getBackendUrl = () => {
 };
 
 const API_URL = getBackendUrl();
-const getTenantId = () => {
+
+export const getTenantId = () => {
+  const userTenantId = localStorage.getItem('tenantId');
+  if (userTenantId) return userTenantId;
   if (process.env.REACT_APP_TENANT_ID) {
     return process.env.REACT_APP_TENANT_ID.toLowerCase();
-  }
-  const host = window.location.hostname;
-  if (host === 'localhost' || host === '127.0.0.1') {
-    return 'kuyumcular-odasi-dev';
   }
   return 'kuyumcular-odasi';
 };
@@ -30,7 +29,7 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('adminToken');
-  config.headers['X-Tenant-Id'] = TENANT_ID;
+  config.headers['X-Tenant-Id'] = getTenantId();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -42,7 +41,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('adminToken');
-      window.location.hash = '#/login';
+      localStorage.removeItem('tenantId');
+      window.location.hash = '#/';
     }
     return Promise.reject(error);
   }

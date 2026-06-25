@@ -7,10 +7,17 @@ import {
   Typography,
   IconButton,
   Button,
+  TextField,
+  CircularProgress,
+  Alert,
+  Card,
+  CardContent,
 } from "@mui/material";
 import SettingsIcon from "@mui/icons-material/Settings";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import CurrencyBar from "./CurrencyBar";
-import { settingsService, TENANT_ID } from "./services/api";
+import { settingsService, getTenantId } from "./services/api";
 import { useAuth } from "./context/AuthContext";
 
 // Backend URL configuration
@@ -70,6 +77,8 @@ function App() {
     return defaults;
   });
   const [currentTime, setCurrentTime] = useState("");
+  const [lastDataTime, setLastDataTime] = useState(null);
+  const [priceHistory, setPriceHistory] = useState([]);
 
   const formatNumber = (number, { decimals } = {}) => {
     const fractionDigits = decimals ?? 0;
@@ -119,12 +128,31 @@ function App() {
 
   const [calculatedPrices, setCalculatedPrices] = useState([]);
   
+  const [loginUsername, setLoginUsername] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
+
   const navigate = useNavigate();
-  const { isAdmin, isAuthenticated, logout, admin } = useAuth();
+  const { isAdmin, isAuthenticated, logout, admin, login, loading: authLoading } = useAuth();
 
   const handleLogout = () => {
     logout();
-    navigate("/login");
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoginError("");
+    setLoginLoading(true);
+    try {
+      await login(loginUsername, loginPassword);
+      setLoginUsername("");
+      setLoginPassword("");
+    } catch (err) {
+      setLoginError(err.response?.data?.error || "Giriş başarısız");
+    } finally {
+      setLoginLoading(false);
+    }
   };
   
   const handleCalculatePrices = useCallback(async () => {
@@ -155,8 +183,12 @@ function App() {
     }
   }, [buyLaborCosts, sellLaborCosts, buyFixedCosts, sellFixedCosts]);
 
-  // Fetch settings from API on mount
+  // Fetch settings from API after login
   useEffect(() => {
+    if (!isAuthenticated) {
+      setSettingsLoaded(false);
+      return;
+    }
     const fetchSettings = async () => {
       try {
         const response = await settingsService.getSettings();
@@ -175,7 +207,7 @@ function App() {
       }
     };
     fetchSettings();
-  }, []);
+  }, [isAuthenticated]);
 
   // Update time every second
   useEffect(() => {
@@ -216,16 +248,49 @@ function App() {
       console.log("⚠️ WS error:", error);
     });
 
+    const parseLastUpdate = (str) => {
+      // "24.06.2026 18:47:01" → subtract 3 hours (data comes as UTC+3 ahead)
+      const [datePart, timePart] = str.split(" ");
+      const [day, month, year] = datePart.split(".");
+      const date = new Date(`${year}-${month}-${day}T${timePart}`);
+      date.setHours(date.getHours() - 3);
+      return `${String(date.getDate()).padStart(2,"0")}.${String(date.getMonth()+1).padStart(2,"0")}.${date.getFullYear()} ${String(date.getHours()).padStart(2,"0")}:${String(date.getMinutes()).padStart(2,"0")}:${String(date.getSeconds()).padStart(2,"0")}`;
+    };
+
+    const addPriceHistory = (data) => {
+      if (!data?.[0]) return;
+      const has = data[0];
+      const now = new Date();
+      const time = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+      setPriceHistory((prev) => {
+        if (prev.length > 0 && prev[prev.length - 1].time === time) {
+          const updated = [...prev];
+          updated[updated.length - 1] = { time, buy: parseFloat(has.buy), sell: parseFloat(has.sell) };
+          return updated;
+        }
+        const next = [...prev, { time, buy: parseFloat(has.buy), sell: parseFloat(has.sell) }];
+        return next.length > 60 ? next.slice(-60) : next;
+      });
+    };
+
     // Listen for initial gold price when connecting
     socket.on("initialGoldPrice", (message) => {
       console.log("💰 [WS] initialGoldPrice:", message);
       setGoldPrice(message.data);
+      addPriceHistory(message.data);
+      if (message.data?.[0]?.last_update) {
+        setLastDataTime(parseLastUpdate(message.data[0].last_update));
+      }
     });
 
     // Listen for real-time gold price updates from WebSocket
     socket.on("goldPriceUpdate", (message) => {
       console.log("💰 [WS] goldPriceUpdate:", message);
       setGoldPrice(message.data);
+      addPriceHistory(message.data);
+      if (message.data?.[0]?.last_update) {
+        setLastDataTime(parseLastUpdate(message.data[0].last_update));
+      }
     });
 
     // Listen for initial silver price
@@ -291,7 +356,7 @@ function App() {
     // Listen for settings updates from admin
     socket.on("settingsUpdate", (message) => {
       console.log("⚙️ [WS] settingsUpdate:", message);
-      if (message?.tenantId && message.tenantId !== TENANT_ID) {
+      if (message?.tenantId && message.tenantId !== getTenantId()) {
         return;
       }
       if (message.data) {
@@ -321,11 +386,7 @@ function App() {
   }, [goldPrice, handleCalculatePrices, buyLaborCosts, sellLaborCosts, buyFixedCosts, sellFixedCosts, settingsLoaded]);
 
   const goToAdminPanel = () => {
-    if (isAuthenticated) {
-      navigate("/admin/panel");
-      return;
-    }
-    navigate("/login");
+    navigate("/admin/panel");
   };
 
   const subtitles = {
@@ -346,18 +407,121 @@ function App() {
 
   const separatorKeys = ["GRAM ALTIN 913", "ÇEYREK ESKİ", "ÇEYREK YENİ"];
   const groupedProducts = [];
-  if (Array.isArray(hesaplananFiyat) && hesaplananFiyat.length > 0) {
+  const filteredProducts = Array.isArray(hesaplananFiyat) ? hesaplananFiyat.filter((x) => x?.key !== "HAS ALTIN 1000") : [];
+  if (filteredProducts.length > 0) {
     let start = 0;
     separatorKeys.forEach((key) => {
-      const idx = hesaplananFiyat.findIndex((x) => x?.key === key);
+      const idx = filteredProducts.findIndex((x) => x?.key === key);
       if (idx >= start) {
-        groupedProducts.push(hesaplananFiyat.slice(start, idx + 1));
+        groupedProducts.push(filteredProducts.slice(start, idx + 1));
         start = idx + 1;
       }
     });
-    if (start < hesaplananFiyat.length) {
-      groupedProducts.push(hesaplananFiyat.slice(start));
+    if (start < filteredProducts.length) {
+      groupedProducts.push(filteredProducts.slice(start));
     }
+  }
+
+  if (authLoading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", background: "#1a1a1a" }}>
+        <CircularProgress sx={{ color: "#d4af37" }} />
+      </Box>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(180deg, #1a1a1a 0%, #2a2518 100%)",
+          padding: 2,
+        }}
+      >
+        <Card sx={{ maxWidth: 420, width: "100%", boxShadow: "0 8px 28px rgba(0,0,0,0.45)", backgroundColor: "#171717", border: "1px solid #6f5a1f" }}>
+          <CardContent sx={{ p: 4 }}>
+            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 3 }}>
+              <Box
+                component="img"
+                src={`${process.env.PUBLIC_URL}/siverek-emblem.svg`}
+                alt="Logo"
+                sx={{ width: 64, height: 64, borderRadius: "50%", boxShadow: "0 4px 14px rgba(0,0,0,0.35)", mb: 2 }}
+              />
+              <Box
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: "50%",
+                  background: "linear-gradient(145deg, #c9a227 0%, #8b6914 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  mb: 2,
+                }}
+              >
+                <LockOutlinedIcon sx={{ color: "white", fontSize: 24 }} />
+              </Box>
+              <Typography variant="h5" fontWeight="bold" color="#f0d98b" align="center">
+                Kuyumcu Girişi
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 1, color: "#b9a978" }} align="center">
+                Canlı altın ve döviz fiyatlarını görüntülemek için giriş yapın
+              </Typography>
+            </Box>
+
+            {loginError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {loginError}
+              </Alert>
+            )}
+
+            <form onSubmit={handleLogin}>
+              <TextField
+                fullWidth
+                label="Kullanıcı Adı"
+                value={loginUsername}
+                onChange={(e) => setLoginUsername(e.target.value)}
+                margin="normal"
+                required
+                autoFocus
+                InputLabelProps={{ sx: { color: "#b9a978" } }}
+                InputProps={{ sx: { color: "#f5e8b0", "& .MuiOutlinedInput-notchedOutline": { borderColor: "#5d4a1b" }, "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#d4af37" }, "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#d4af37" } } }}
+              />
+              <TextField
+                fullWidth
+                label="Şifre"
+                type="password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                margin="normal"
+                required
+                InputLabelProps={{ sx: { color: "#b9a978" } }}
+                InputProps={{ sx: { color: "#f5e8b0", "& .MuiOutlinedInput-notchedOutline": { borderColor: "#5d4a1b" }, "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#d4af37" }, "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#d4af37" } } }}
+              />
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                disabled={loginLoading}
+                sx={{
+                  mt: 3,
+                  mb: 2,
+                  py: 1.5,
+                  backgroundColor: "#d4af37",
+                  "&:hover": { backgroundColor: "#b8962e" },
+                }}
+              >
+                {loginLoading ? <CircularProgress size={24} color="inherit" /> : "Giriş Yap"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </Box>
+    );
   }
 
   return (
@@ -384,8 +548,8 @@ function App() {
       >
           {/* Header */}
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: { xs: "8px", md: "16px" }, flexWrap: "wrap", gap: "8px" }}>
-            {/* Left: Logo */}
-            <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1.5, md: 2 } }}>
+            {/* Left: Logo + Shop Name + Chart */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1.5, md: 2 }, flex: 1 }}>
               <Box
                 component="img"
                 src={`${process.env.PUBLIC_URL}/siverek-emblem.svg`}
@@ -395,9 +559,10 @@ function App() {
                   height: { xs: 48, sm: 56, md: 64 },
                   borderRadius: "50%",
                   boxShadow: "0 4px 14px rgba(0,0,0,0.35)",
+                  flexShrink: 0,
                 }}
               />
-              <Box>
+              {admin?.shopName && (
                 <Typography
                   sx={{
                     color: "#f5d76e",
@@ -407,76 +572,100 @@ function App() {
                     letterSpacing: "2px",
                     textTransform: "uppercase",
                     textShadow: "0 2px 8px rgba(212, 175, 55, 0.4)",
+                    flexShrink: 0,
                   }}
                 >
-                  Fatih Kuyumculuk
+                  {admin.shopName}
                 </Typography>
-                <Typography
-                  sx={{
-                    color: "#c9b87a",
-                    fontWeight: "700",
-                    fontSize: { xs: "11px", sm: "14px", md: "17px" },
-                    lineHeight: 1.2,
-                    letterSpacing: "3px",
-                    textTransform: "uppercase",
-                    mt: 0.3,
-                  }}
-                >
-                  İFA Kıymetli Madenler
-                </Typography>
-              </Box>
+              )}
             </Box>
 
             {/* Right: Tarih/saat + Çıkış */}
             <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 0.5 }}>
-              <Typography sx={{ color: "#bbb", fontSize: { xs: "13px", sm: "15px", md: "17px" }, fontWeight: "bold", whiteSpace: "nowrap" }}>
-                {currentTime}
-              </Typography>
-              {isAuthenticated && (
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Button
-                    size="small"
-                    onClick={handleLogout}
-                    sx={{
-                      textTransform: "none",
-                      color: "#e6c76a",
-                      minWidth: "auto",
-                      fontSize: { xs: "10px", sm: "11px" },
-                      border: "1px solid #7a6320",
-                      borderRadius: "8px",
-                      px: 1.5,
-                      py: 0.25,
-                      "&:hover": { borderColor: "#d4af37", backgroundColor: "#1b1b1b" },
-                    }}
-                  >
-                    Çıkış
-                  </Button>
-                </Box>
+              {lastDataTime && (
+                <Typography sx={{ color: "#e6c76a", fontSize: { xs: "14px", sm: "16px", md: "18px" }, fontWeight: "900", whiteSpace: "nowrap", letterSpacing: "0.5px" }}>
+                  Son veri tarihi: {lastDataTime}
+                </Typography>
               )}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Button
+                  size="small"
+                  onClick={handleLogout}
+                  sx={{
+                    textTransform: "none",
+                    color: "#e6c76a",
+                    minWidth: "auto",
+                    fontSize: { xs: "10px", sm: "11px" },
+                    border: "1px solid #7a6320",
+                    borderRadius: "8px",
+                    px: 1.5,
+                    py: 0.25,
+                    "&:hover": { borderColor: "#d4af37", backgroundColor: "#1b1b1b" },
+                  }}
+                >
+                  Çıkış
+                </Button>
+              </Box>
             </Box>
           </Box>
 
-          {/* Price & labor settings */}
-          <Box sx={{ marginBottom: "8px", display: "flex", gap: "6px", opacity: 0.6, "&:hover": { opacity: 1 }, justifyContent: "flex-end" }}>
-            <IconButton
-              onClick={goToAdminPanel}
+          {/* HAS ALTIN 1000 Chart */}
+          {priceHistory.length > 1 && (
+            <Box
               sx={{
-                color: "#d4af37",
-                fontSize: "20px",
-                transition: "all 0.3s",
-                padding: "4px",
-                "&:hover": {
-                  transform: "scale(1.2)",
-                  color: "#d4af37",
-                },
+                background: "rgba(30, 30, 28, 0.85)",
+                border: "1px solid #5a4a1e",
+                borderRadius: "12px",
+                padding: { xs: "10px 8px", md: "14px 16px" },
               }}
-              title={isAdmin ? "Fiyat ve işçilik ayarları" : "Ayarlar için giriş yapın"}
             >
-              <SettingsIcon sx={{ fontSize: "20px" }} />
-            </IconButton>
-          </Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                <Typography sx={{ color: "#d4af37", fontWeight: 800, fontSize: { xs: "13px", md: "15px" }, letterSpacing: 0.5 }}>
+                  HAS ALTIN 1000
+                </Typography>
+                <Box sx={{ display: "flex", gap: 2 }}>
+                  <Typography sx={{ color: "#00c853", fontWeight: 900, fontSize: { xs: "14px", md: "16px" } }}>
+                    A: {formatNumber(priceHistory[priceHistory.length - 1].buy, { decimals: 2 })}
+                  </Typography>
+                  <Typography sx={{ color: "#ff1744", fontWeight: 900, fontSize: { xs: "14px", md: "16px" } }}>
+                    S: {formatNumber(priceHistory[priceHistory.length - 1].sell, { decimals: 2 })}
+                  </Typography>
+                </Box>
+              </Box>
+              <ResponsiveContainer width="100%" height={120}>
+                <LineChart data={priceHistory}>
+                  <YAxis domain={["auto", "auto"]} hide />
+                  <XAxis dataKey="time" tick={{ fill: "#888", fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <Line type="monotone" dataKey="buy" stroke="#00c853" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="sell" stroke="#ff1744" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </Box>
+          )}
 
-          {/* New layout: product cards + side market panel */}
+          {/* Admin settings button */}
+          {isAdmin && (
+            <Box sx={{ marginBottom: "8px", display: "flex", gap: "6px", opacity: 0.6, "&:hover": { opacity: 1 }, justifyContent: "flex-end" }}>
+              <IconButton
+                onClick={goToAdminPanel}
+                sx={{
+                  color: "#d4af37",
+                  fontSize: "20px",
+                  transition: "all 0.3s",
+                  padding: "4px",
+                  "&:hover": {
+                    transform: "scale(1.2)",
+                    color: "#d4af37",
+                  },
+                }}
+                title="Fiyat ve işçilik ayarları"
+              >
+                <SettingsIcon sx={{ fontSize: "20px" }} />
+              </IconButton>
+            </Box>
+          )}
+
+          {/* Product cards + side market panel */}
           <Box
             sx={{
               display: "grid",
@@ -563,6 +752,7 @@ function App() {
               />
             </Box>
           </Box>
+
       </Box>
     </Box>
   );

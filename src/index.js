@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom/client';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import './index.css';
 import App from './App';
-import AdminLogin from './pages/AdminLogin';
 import AdminPanel from './pages/AdminPanel';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -15,13 +14,8 @@ root.render(
     <HashRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/login" element={<AdminLogin />} />
-          <Route
-            path="/"
-            element={
-              <App />
-            }
-          />
+          <Route path="/" element={<App />} />
+          <Route path="/login" element={<Navigate to="/" replace />} />
           <Route
             path="/admin/panel"
             element={
@@ -30,8 +24,8 @@ root.render(
               </ProtectedRoute>
             }
           />
-          <Route path="/admin" element={<Navigate to="/login" replace />} />
-          <Route path="/adminis" element={<Navigate to="/login" replace />} />
+          <Route path="/admin" element={<Navigate to="/" replace />} />
+          <Route path="/adminis" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
     </HashRouter>
