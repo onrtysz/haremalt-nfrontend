@@ -29,7 +29,10 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('adminToken');
-  config.headers['X-Tenant-Id'] = getTenantId();
+  const isAuthRequest = config.url?.includes('/api/auth/login') || config.url?.includes('/api/auth/setup');
+  if (!isAuthRequest) {
+    config.headers['X-Tenant-Id'] = getTenantId();
+  }
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -39,7 +42,8 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const isAuthRequest = error.config?.url?.includes('/api/auth/login') || error.config?.url?.includes('/api/auth/setup');
+    if (error.response?.status === 401 && !isAuthRequest) {
       localStorage.removeItem('adminToken');
       localStorage.removeItem('tenantId');
       window.location.hash = '#/';

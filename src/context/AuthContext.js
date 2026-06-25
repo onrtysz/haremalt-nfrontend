@@ -67,6 +67,8 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('adminToken');
     localStorage.removeItem('tenantId');
+    localStorage.removeItem('hesaplananFiyat');
+    localStorage.removeItem('calculatedPrices');
     setIsAuthenticated(false);
     setAdmin(null);
   };
